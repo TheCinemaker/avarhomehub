@@ -53,7 +53,7 @@ export function useHomeStore() {
     return saved ? JSON.parse(saved) : INITIAL_BILLS;
   });
 
-  // Supabase Initial Sync (If configured via .env)
+  // Supabase Initial Sync & Realtime Channel Subscription
   useEffect(() => {
     if (!isSupabaseConfigured || !supabase) return;
 
@@ -117,6 +117,18 @@ export function useHomeStore() {
     }
 
     loadFromSupabase();
+
+    // Subscribe to Supabase Realtime WebSocket changes across all family devices
+    const channel = supabase.channel('homehub-family-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'shopping_items' }, () => loadFromSupabase())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'todo_tasks' }, () => loadFromSupabase())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'stores' }, () => loadFromSupabase())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'family_profiles' }, () => loadFromSupabase())
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   // LocalStorage Persistence Effects

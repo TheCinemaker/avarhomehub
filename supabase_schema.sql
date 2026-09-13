@@ -1,17 +1,19 @@
 -- ========================================================
--- HomeHub v4.1.0 - Clean Reset & Supabase Schema Script
+-- HomeHub v4.2.0 - Realtime & Idempotent Schema Script
 -- ========================================================
 -- Másold be ezt a teljes scriptet a Supabase SQL Editor-ba,
 -- majd kattints a "RUN" gombra!
 
--- Régi meglévő táblák törlése az új struktúra tiszta létrehozásához
+-- 1. Régi meglévő táblák és házirendek törlése (Hiba elkerülése)
 DROP TABLE IF EXISTS public.family_profiles CASCADE;
 DROP TABLE IF EXISTS public.stores CASCADE;
 DROP TABLE IF EXISTS public.shopping_items CASCADE;
 DROP TABLE IF EXISTS public.todo_tasks CASCADE;
 DROP TABLE IF EXISTS public.bills CASCADE;
 
--- 1. CSALÁDI PROFILOK TÁBLA (Fiókonként / Regisztrációnként elkülönítve)
+DROP POLICY IF EXISTS "Public Storage Access" ON storage.objects;
+
+-- 2. CSALÁDI PROFILOK TÁBLA (Fiókonként / Családonként elkülönítve)
 CREATE TABLE public.family_profiles (
     id TEXT NOT NULL,
     user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -23,7 +25,7 @@ CREATE TABLE public.family_profiles (
     PRIMARY KEY (id, user_id)
 );
 
--- 2. BOLTOK / ÜZLETEK TÁBLA
+-- 3. BOLTOK / ÜZLETEK TÁBLA
 CREATE TABLE public.stores (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -31,7 +33,7 @@ CREATE TABLE public.stores (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- 3. BEVÁSÁRLÓLISTA TÁBLA (Termékfotó támogatással)
+-- 4. BEVÁSÁRLÓLISTA TÁBLA (Termékfotó támogatással)
 CREATE TABLE public.shopping_items (
     id TEXT PRIMARY KEY,
     user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -47,7 +49,7 @@ CREATE TABLE public.shopping_items (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- 4. TEENDŐK TÁBLA
+-- 5. TEENDŐK TÁBLA
 CREATE TABLE public.todo_tasks (
     id TEXT PRIMARY KEY,
     user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -61,14 +63,13 @@ CREATE TABLE public.todo_tasks (
 );
 
 -- ========================================================
--- ROW LEVEL SECURITY (RLS) POLICIES - Fiók izoláció
+-- ROW LEVEL SECURITY (RLS) POLICIES - Családi fiók izoláció
 -- ========================================================
 ALTER TABLE public.family_profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.stores ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.shopping_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.todo_tasks ENABLE ROW LEVEL SECURITY;
 
--- Csak a bejelentkezett felhasználó éri el a saját adatait!
 CREATE POLICY "Family profiles policy" ON public.family_profiles
     FOR ALL TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 
@@ -80,6 +81,14 @@ CREATE POLICY "Shopping items policy" ON public.shopping_items
 
 CREATE POLICY "Todo tasks policy" ON public.todo_tasks
     FOR ALL TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+-- ========================================================
+-- SUPABASE REALTIME ENGEDÉLYEZÉSE A CSALÁDI ÉLŐ SZINKRONHOZ
+-- ========================================================
+ALTER PUBLICATION supabase_realtime ADD TABLE public.shopping_items;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.todo_tasks;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.family_profiles;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.stores;
 
 -- ========================================================
 -- STORAGE BUCKET BEÁLLÍTÁSA A TERMÉKFOTÓKHOZ

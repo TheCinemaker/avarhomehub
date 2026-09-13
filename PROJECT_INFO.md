@@ -19,8 +19,8 @@ Kiemelt elrendezés és működés:
 ---
 
 ## 2. Current Status (Jelenlegi Állapot)
-- **Verzió**: 4.0.0 (Szigorú Auth Screen Bejelentkezési Kapu, Supabase `user_id` Fiók Izoláció, Új regisztráció automatikus családi profil inicializálással, Adatvédelem)
-- **Perzisztencia**: Supabase Auth & Multi-tenant Cloud Database + LocalStorage offline fallback.
+- **Verzió**: 4.2.0 (Supabase Realtime WebSocket Élő Szinkronizáció a családi készülékek között, Családi Fiók alapú regisztráció tetszőleges al-profilokkal, Idempotens SQL táblascript)
+- **Perzisztencia**: Supabase Realtime WebSocket & Cloud DB + LocalStorage fallback.
 - **Dizájn**: Full screen Auth Screen kapu, full screen item modal, 40% áttetsző sticky header, 7-oszlopos Naptár Grid.
 
 ---
