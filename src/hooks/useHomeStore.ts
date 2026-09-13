@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { UserProfile, ShoppingItem, TodoTask, BillItem, UserId, StoreTag } from '../types';
+import { UserProfile, ShoppingItem, TodoTask, BillItem, MealItem, UserId, StoreTag } from '../types';
 import { INITIAL_USERS, INITIAL_SHOPPING, INITIAL_TODOS, INITIAL_BILLS, getRelativeDate } from '../mockData';
 import { supabase, isSupabaseConfigured } from '../supabaseClient';
 
@@ -11,7 +11,8 @@ const STORAGE_KEYS = {
   SHOPPING: 'homehub_shopping_v1',
   TODOS: 'homehub_todos_v1',
   BILLS: 'homehub_bills_v1',
-  STORES: 'homehub_custom_stores_v1'
+  STORES: 'homehub_custom_stores_v1',
+  MEALS: 'homehub_meals_v1'
 };
 
 // Safe LocalStorage Wrappers with QuotaExceededError Protection
@@ -85,6 +86,15 @@ export function useHomeStore() {
     return saved ? JSON.parse(saved) : INITIAL_BILLS;
   });
 
+  // 7. Meals state (Heti étlap & családi ebédek)
+  const [meals, setMeals] = useState<MealItem[]>(() => {
+    const saved = safeGetLocalStorage(STORAGE_KEYS.MEALS);
+    return saved ? JSON.parse(saved) : [
+      { id: 'meal-1', date: getRelativeDate(0), mealType: 'ebed', title: 'Rakott krumpli', ingredients: '1kg krumpli, 50dkg kolbász, tejföl, 6 tojás', suggestedBy: 'anya' },
+      { id: 'meal-2', date: getRelativeDate(1), mealType: 'ebed', title: 'Rántott hús rizi-bizivel', ingredients: '1kg karaj, zsemlemorzsa, tojás, rizs, borsó', suggestedBy: 'apa' }
+    ];
+  });
+
   // Supabase Initial Sync & Realtime Channel Subscription
   useEffect(() => {
     if (!isSupabaseConfigured || !supabase) return;
@@ -143,6 +153,20 @@ export function useHomeStore() {
           }));
           setUsers(mapped);
         }
+
+        const { data: remoteMeals } = await supabase!.from('family_meals').select('*');
+        if (remoteMeals && remoteMeals.length > 0) {
+          const mapped: MealItem[] = remoteMeals.map((r: any) => ({
+            id: r.id,
+            date: r.date || getRelativeDate(0),
+            mealType: r.meal_type || 'ebed',
+            title: r.title,
+            ingredients: r.ingredients || undefined,
+            suggestedBy: r.suggested_by || 'everyone',
+            notes: r.notes || undefined
+          }));
+          setMeals(mapped);
+        }
       } catch (err) {
         console.warn('Supabase sync warning:', err);
       }
@@ -156,6 +180,7 @@ export function useHomeStore() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'todo_tasks' }, () => loadFromSupabase())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'stores' }, () => loadFromSupabase())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'family_profiles' }, () => loadFromSupabase())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'family_meals' }, () => loadFromSupabase())
       .subscribe();
 
     return () => {
@@ -187,6 +212,10 @@ export function useHomeStore() {
   useEffect(() => {
     safeSetLocalStorage(STORAGE_KEYS.BILLS, JSON.stringify(bills));
   }, [bills]);
+
+  useEffect(() => {
+    safeSetLocalStorage(STORAGE_KEYS.MEALS, JSON.stringify(meals));
+  }, [meals]);
 
   // Helper to get authenticated user ID
   const getAuthUserId = async () => {
@@ -425,6 +454,98 @@ export function useHomeStore() {
     setBills(prev => prev.filter(b => b.id !== id));
   };
 
+  // Actions: Family Meals & Weekly Menu Planner
+  const addMeal = async (meal: Omit<MealItem, 'id'>) => {
+    const newMeal: MealItem = {
+      ...meal,
+      id: `meal-${Date.now()}`
+    };
+    setMeals(prev => [newMeal, ...prev]);
+
+    const userId = await getAuthUserId();
+    if (isSupabaseConfigured && supabase && userId) {
+      supabase.from('family_meals').insert([{
+        id: newMeal.id,
+        user_id: userId,
+        date: newMeal.date,
+        meal_type: newMeal.mealType,
+        title: newMeal.title,
+        ingredients: newMeal.ingredients,
+        suggested_by: newMeal.suggestedBy,
+        notes: newMeal.notes
+      }]).then();
+    }
+  };
+
+  const updateMeal = (id: string, updates: Partial<MealItem>) => {
+    setMeals(prev =>
+      prev.map(meal => (meal.id === id ? { ...meal, ...updates } : meal))
+    );
+
+    if (isSupabaseConfigured && supabase) {
+      const dbPayload: any = {};
+      if (updates.date !== undefined) dbPayload.date = updates.date;
+      if (updates.mealType !== undefined) dbPayload.meal_type = updates.mealType;
+      if (updates.title !== undefined) dbPayload.title = updates.title;
+      if (updates.ingredients !== undefined) dbPayload.ingredients = updates.ingredients;
+      if (updates.suggestedBy !== undefined) dbPayload.suggested_by = updates.suggestedBy;
+      if (updates.notes !== undefined) dbPayload.notes = updates.notes;
+
+      if (Object.keys(dbPayload).length > 0) {
+        supabase.from('family_meals').update(dbPayload).eq('id', id).then();
+      }
+    }
+  };
+
+  const deleteMeal = (id: string) => {
+    setMeals(prev => prev.filter(m => m.id !== id));
+
+    if (isSupabaseConfigured && supabase) {
+      supabase.from('family_meals').delete().eq('id', id).then();
+    }
+  };
+
+  // Helper: Copy Recipe Ingredients to Shopping List with 1 click
+  const addIngredientsToShoppingList = async (ingredientsStr: string, targetStore: string = 'Lidl') => {
+    if (!ingredientsStr || !ingredientsStr.trim()) return;
+    const parts = ingredientsStr.split(/[,;\n]+/).map(p => p.trim()).filter(Boolean);
+    if (parts.length === 0) return;
+
+    const newItems: ShoppingItem[] = [];
+    const userId = await getAuthUserId();
+    const today = getRelativeDate(0);
+
+    for (const rawPart of parts) {
+      const id = `shop-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
+      const newItem: ShoppingItem = {
+        id,
+        title: rawPart,
+        store: targetStore,
+        category: 'Élelmiszer',
+        date: today,
+        assignedUser: activeUserId,
+        isCompleted: false,
+        estimatedPrice: 0
+      };
+      newItems.push(newItem);
+
+      if (isSupabaseConfigured && supabase && userId) {
+        supabase.from('shopping_items').insert([{
+          id: newItem.id,
+          user_id: userId,
+          title: newItem.title,
+          store: newItem.store,
+          category: newItem.category,
+          date: newItem.date,
+          assigned_user: newItem.assignedUser,
+          is_completed: false
+        }]).then();
+      }
+    }
+
+    setShoppingItems(prev => [...newItems, ...prev]);
+  };
+
   // Backup Export/Import Data
   const exportDataJSON = () => {
     const data = {
@@ -434,6 +555,7 @@ export function useHomeStore() {
       shoppingItems,
       todos,
       bills,
+      meals,
       exportedAt: new Date().toISOString()
     };
     const jsonStr = JSON.stringify(data, null, 2);
@@ -453,6 +575,7 @@ export function useHomeStore() {
       if (parsed.shoppingItems) setShoppingItems(parsed.shoppingItems);
       if (parsed.todos) setTodos(parsed.todos);
       if (parsed.bills) setBills(parsed.bills);
+      if (parsed.meals) setMeals(parsed.meals);
       return true;
     } catch (err) {
       alert('Érvénytelen JSON fájl!');
@@ -468,6 +591,7 @@ export function useHomeStore() {
       setShoppingItems(INITIAL_SHOPPING);
       setTodos(INITIAL_TODOS);
       setBills(INITIAL_BILLS);
+      setMeals([]);
     }
   };
 
@@ -501,6 +625,11 @@ export function useHomeStore() {
     toggleBillStatus,
     reassignBillItem,
     deleteBillItem,
+    meals,
+    addMeal,
+    updateMeal,
+    deleteMeal,
+    addIngredientsToShoppingList,
     exportDataJSON,
     importDataJSON,
     resetToDemoData

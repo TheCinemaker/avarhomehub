@@ -10,6 +10,7 @@ DROP TABLE IF EXISTS public.stores CASCADE;
 DROP TABLE IF EXISTS public.shopping_items CASCADE;
 DROP TABLE IF EXISTS public.todo_tasks CASCADE;
 DROP TABLE IF EXISTS public.bills CASCADE;
+DROP TABLE IF EXISTS public.family_meals CASCADE;
 
 DROP POLICY IF EXISTS "Public Storage Access" ON storage.objects;
 
@@ -62,6 +63,19 @@ CREATE TABLE public.todo_tasks (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
+-- 6. HETI ÉTLAP & CSALÁDI EBÉDEK TÁBLA
+CREATE TABLE public.family_meals (
+    id TEXT PRIMARY KEY,
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+    date DATE NOT NULL,
+    meal_type TEXT DEFAULT 'ebed',
+    title TEXT NOT NULL,
+    ingredients TEXT,
+    suggested_by TEXT DEFAULT 'everyone',
+    notes TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
 -- ========================================================
 -- ROW LEVEL SECURITY (RLS) POLICIES - Családi fiók izoláció
 -- ========================================================
@@ -69,6 +83,7 @@ ALTER TABLE public.family_profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.stores ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.shopping_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.todo_tasks ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.family_meals ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Family profiles policy" ON public.family_profiles
     FOR ALL TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
@@ -82,6 +97,9 @@ CREATE POLICY "Shopping items policy" ON public.shopping_items
 CREATE POLICY "Todo tasks policy" ON public.todo_tasks
     FOR ALL TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 
+CREATE POLICY "Family meals policy" ON public.family_meals
+    FOR ALL TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
 -- ========================================================
 -- SUPABASE REALTIME ENGEDÉLYEZÉSE A CSALÁDI ÉLŐ SZINKRONHOZ
 -- ========================================================
@@ -89,6 +107,7 @@ ALTER PUBLICATION supabase_realtime ADD TABLE public.shopping_items;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.todo_tasks;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.family_profiles;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.stores;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.family_meals;
 
 -- ========================================================
 -- STORAGE BUCKET BEÁLLÍTÁSA A TERMÉKFOTÓKHOZ

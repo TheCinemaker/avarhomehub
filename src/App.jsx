@@ -4,6 +4,7 @@ import { supabase, isSupabaseConfigured } from './supabaseClient';
 import { Header } from './components/Header';
 import { DayNavigator } from './components/DayNavigator';
 import { ShoppingTab } from './components/ShoppingTab';
+import { MealsTab } from './components/MealsTab';
 import { TodoTab } from './components/TodoTab';
 import { BillsTab } from './components/BillsTab';
 import { SettingsTab } from './components/SettingsTab';
@@ -11,7 +12,7 @@ import { CalendarTab } from './components/CalendarTab';
 import { CalendarModal } from './components/CalendarModal';
 import { AuthScreen } from './components/AuthScreen';
 import { AuthModal } from './components/AuthModal';
-import { ShoppingCart, CheckSquare, CreditCard, Settings, Calendar, LogIn, Database, X } from 'lucide-react';
+import { ShoppingCart, CheckSquare, CreditCard, Settings, Calendar, LogIn, Database, X, Utensils } from 'lucide-react';
 
 export function App() {
   const store = useHomeStore();
@@ -92,14 +93,22 @@ export function App() {
           onOpenCalendarModal={() => setActiveTab('calendar')}
         />
 
-        {/* 4. Icon Tabs Side-by-Side (Bevásárlólista, Teendők) - Befizetnivalók kikommentezve */}
-        <div className="three-tabs-bar" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
+        {/* 4. Icon Tabs Side-by-Side (Bevásárlólista, Heti Étlap, Teendők) */}
+        <div className="three-tabs-bar" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
           <button
             className={`three-tab-btn ${activeTab === 'shopping' ? 'active' : ''}`}
             onClick={() => setActiveTab('shopping')}
           >
             <ShoppingCart size={19} style={{ color: activeTab === 'shopping' ? '#38bdf8' : 'inherit' }} />
-            <span>Bevásárlólista</span>
+            <span>Bevásárlás</span>
+          </button>
+
+          <button
+            className={`three-tab-btn ${activeTab === 'meals' ? 'active' : ''}`}
+            onClick={() => setActiveTab('meals')}
+          >
+            <Utensils size={19} style={{ color: activeTab === 'meals' ? '#f59e0b' : 'inherit' }} />
+            <span>Heti Étlap</span>
           </button>
 
           <button
@@ -109,16 +118,6 @@ export function App() {
             <CheckSquare size={19} style={{ color: activeTab === 'todos' ? '#818cf8' : 'inherit' }} />
             <span>Teendők</span>
           </button>
-
-          {/* Befizetnivalók kikommentezve az 1. körben
-          <button
-            className={`three-tab-btn ${activeTab === 'bills' ? 'active' : ''}`}
-            onClick={() => setActiveTab('bills')}
-          >
-            <CreditCard size={19} style={{ color: activeTab === 'bills' ? '#f59e0b' : 'inherit' }} />
-            <span>Befizetnivalók</span>
-          </button>
-          */}
         </div>
 
         {/* 5. Main Content Area (Default: Bevásárlólista) */}
@@ -134,6 +133,20 @@ export function App() {
             onToggleItem={store.toggleShoppingItem}
             onReassignItem={store.reassignShoppingItem}
             onDeleteItem={store.deleteShoppingItem}
+          />
+        )}
+
+        {activeTab === 'meals' && (
+          <MealsTab
+            meals={store.meals}
+            users={store.users}
+            activeUserId={store.activeUserId}
+            selectedDate={store.selectedDate}
+            stores={store.stores}
+            onAddMeal={store.addMeal}
+            onUpdateMeal={store.updateMeal}
+            onDeleteMeal={store.deleteMeal}
+            onAddIngredientsToShoppingList={store.addIngredientsToShoppingList}
           />
         )}
 
@@ -201,22 +214,20 @@ export function App() {
           </button>
 
           <button
+            className={`nav-item ${activeTab === 'meals' ? 'active' : ''}`}
+            onClick={() => setActiveTab('meals')}
+          >
+            <Utensils size={20} />
+            <span>Heti Étlap</span>
+          </button>
+
+          <button
             className={`nav-item ${activeTab === 'todos' ? 'active' : ''}`}
             onClick={() => setActiveTab('todos')}
           >
             <CheckSquare size={20} />
             <span>Teendők</span>
           </button>
-
-          {/* Befizetnivalók kikommentezve az 1. körben
-          <button
-            className={`nav-item ${activeTab === 'bills' ? 'active' : ''}`}
-            onClick={() => setActiveTab('bills')}
-          >
-            <CreditCard size={20} />
-            <span>Számlák</span>
-          </button>
-          */}
 
           <button
             className={`nav-item ${activeTab === 'calendar' ? 'active' : ''}`}

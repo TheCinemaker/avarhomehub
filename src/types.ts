@@ -56,3 +56,15 @@ export interface BillItem {
   paidBy?: UserId;
   note?: string;
 }
+
+export type MealType = 'ebed' | 'vacsora';
+
+export interface MealItem {
+  id: string;
+  date: string; // YYYY-MM-DD
+  mealType: MealType;
+  title: string; // pl. "Rakott krumpli"
+  ingredients?: string; // pl. "1kg krumpli, 50dkg kolbász, tejföl, 6 tojás"
+  suggestedBy: UserId;
+  notes?: string;
+}

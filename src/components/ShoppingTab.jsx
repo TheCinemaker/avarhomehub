@@ -389,11 +389,25 @@ export const ShoppingTab = ({
 
                 <button
                   className="btn-icon"
-                  style={{ width: '28px', height: '28px' }}
-                  onClick={() => onDeleteItem(item.id)}
-                  title="Törlés"
+                  style={{
+                    width: '34px',
+                    height: '34px',
+                    color: '#ef4444',
+                    background: 'rgba(239, 68, 68, 0.15)',
+                    border: '1px solid rgba(239, 68, 68, 0.35)',
+                    borderRadius: '8px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer'
+                  }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDeleteItem(item.id);
+                  }}
+                  title="Tétel törlése"
                 >
-                  <Trash2 size={14} />
+                  <Trash2 size={16} />
                 </button>
               </div>
             </div>

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { CheckSquare, Plus, Trash2, Check, RefreshCw, X, UserPlus, Calendar } from 'lucide-react';
 
 const CATEGORIES = ['Házimunka', 'Suli / Ovi', 'Ügyintézés', 'Autó', 'Kert', 'Hobbi', 'Egyéb'];
@@ -185,7 +186,26 @@ export const TodoTab = ({
               </div>
 
               <div className="item-right">
-                <button className="btn-icon" onClick={() => onDeleteTask(task.id)} title="Törlés">
+                <button
+                  className="btn-icon"
+                  style={{
+                    width: '34px',
+                    height: '34px',
+                    color: '#ef4444',
+                    background: 'rgba(239, 68, 68, 0.15)',
+                    border: '1px solid rgba(239, 68, 68, 0.35)',
+                    borderRadius: '8px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer'
+                  }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDeleteTask(task.id);
+                  }}
+                  title="Törlés"
+                >
                   <Trash2 size={16} />
                 </button>
               </div>
@@ -194,34 +214,35 @@ export const TodoTab = ({
         </div>
       )}
 
-      {/* Add Task Modal */}
-      {isModalOpen && (
-        <div className="modal-overlay" onClick={() => setIsModalOpen(false)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()}>
+      {/* Add Task Modal (Portal to document.body to fix top cut-off on mobile) */}
+      {isModalOpen && createPortal(
+        <div className="modal-overlay full-screen-modal-overlay" style={{ zIndex: 9999 }} onClick={() => setIsModalOpen(false)}>
+          <div className="modal-content full-screen-modal-content" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-              <h3>Új Feladat Hozzáadása</h3>
+              <h2 style={{ fontSize: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <CheckSquare size={20} style={{ color: '#818cf8' }} /> Új Feladat Hozzáadása
+              </h2>
               <button className="btn-icon" onClick={() => setIsModalOpen(false)}>
                 <X size={20} />
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '0.5rem' }}>
               <div className="form-group">
-                <label>Feladat megnevezése *</label>
+                <label style={{ fontWeight: 600 }}>Feladat megnevezése *</label>
                 <input
                   type="text"
                   className="form-input"
                   placeholder="pl. Növényöntözés, Szemét elvitele..."
                   value={title}
                   onChange={e => setTitle(e.target.value)}
-                  autoFocus
                   required
                 />
               </div>
 
               <div className="form-row">
                 <div className="form-group">
-                  <label>Prioritás</label>
+                  <label style={{ fontWeight: 600 }}>Prioritás</label>
                   <select
                     className="form-select"
                     value={priority}
@@ -234,7 +255,7 @@ export const TodoTab = ({
                 </div>
 
                 <div className="form-group">
-                  <label>Kategória</label>
+                  <label style={{ fontWeight: 600 }}>Kategória</label>
                   <select
                     className="form-select"
                     value={category}
@@ -249,7 +270,7 @@ export const TodoTab = ({
 
               <div className="form-row">
                 <div className="form-group">
-                  <label>Felelős családtag</label>
+                  <label style={{ fontWeight: 600 }}>Felelős családtag</label>
                   <select
                     className="form-select"
                     value={assignedUser}
@@ -262,7 +283,7 @@ export const TodoTab = ({
                 </div>
 
                 <div className="form-group">
-                  <label>Dátum</label>
+                  <label style={{ fontWeight: 600 }}>Dátum</label>
                   <input
                     type="date"
                     className="form-input"
@@ -280,14 +301,14 @@ export const TodoTab = ({
                   onChange={e => setIsRecurring(e.target.checked)}
                   style={{ width: '18px', height: '18px', cursor: 'pointer' }}
                 />
-                <label htmlFor="recurring-check" style={{ cursor: 'pointer', margin: 0 }}>
+                <label htmlFor="recurring-check" style={{ cursor: 'pointer', margin: 0, fontWeight: 600 }}>
                   Ismétlődő feladat (rendszeres teendő)
                 </label>
               </div>
 
               {isRecurring && (
                 <div className="form-group">
-                  <label>Ismétlődés gyakorisága</label>
+                  <label style={{ fontWeight: 600 }}>Ismétlődés gyakorisága</label>
                   <select
                     className="form-select"
                     value={recurringFrequency}
@@ -304,13 +325,14 @@ export const TodoTab = ({
                 <button type="button" className="btn-secondary" onClick={() => setIsModalOpen(false)}>
                   Mégse
                 </button>
-                <button type="submit" className="btn-primary">
+                <button type="submit" className="btn-primary" style={{ padding: '0.75rem 1.5rem' }}>
                   Feladat Mentése
                 </button>
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
