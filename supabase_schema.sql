@@ -1,11 +1,18 @@
 -- ========================================================
--- HomeHub v4.0.0 - Teljes Supabase Auth Gate & Fiók Szegregációs Adatbázis Script
+-- HomeHub v4.1.0 - Clean Reset & Supabase Schema Script
 -- ========================================================
 -- Másold be ezt a teljes scriptet a Supabase SQL Editor-ba,
 -- majd kattints a "RUN" gombra!
 
+-- Régi meglévő táblák törlése az új struktúra tiszta létrehozásához
+DROP TABLE IF EXISTS public.family_profiles CASCADE;
+DROP TABLE IF EXISTS public.stores CASCADE;
+DROP TABLE IF EXISTS public.shopping_items CASCADE;
+DROP TABLE IF EXISTS public.todo_tasks CASCADE;
+DROP TABLE IF EXISTS public.bills CASCADE;
+
 -- 1. CSALÁDI PROFILOK TÁBLA (Fiókonként / Regisztrációnként elkülönítve)
-CREATE TABLE IF NOT EXISTS public.family_profiles (
+CREATE TABLE public.family_profiles (
     id TEXT NOT NULL,
     user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
@@ -17,7 +24,7 @@ CREATE TABLE IF NOT EXISTS public.family_profiles (
 );
 
 -- 2. BOLTOK / ÜZLETEK TÁBLA
-CREATE TABLE IF NOT EXISTS public.stores (
+CREATE TABLE public.stores (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
@@ -25,7 +32,7 @@ CREATE TABLE IF NOT EXISTS public.stores (
 );
 
 -- 3. BEVÁSÁRLÓLISTA TÁBLA (Termékfotó támogatással)
-CREATE TABLE IF NOT EXISTS public.shopping_items (
+CREATE TABLE public.shopping_items (
     id TEXT PRIMARY KEY,
     user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
     title TEXT NOT NULL,
@@ -41,7 +48,7 @@ CREATE TABLE IF NOT EXISTS public.shopping_items (
 );
 
 -- 4. TEENDŐK TÁBLA
-CREATE TABLE IF NOT EXISTS public.todo_tasks (
+CREATE TABLE public.todo_tasks (
     id TEXT PRIMARY KEY,
     user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
     title TEXT NOT NULL,
