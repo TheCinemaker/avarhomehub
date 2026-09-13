@@ -14,21 +14,53 @@ const STORAGE_KEYS = {
   STORES: 'homehub_custom_stores_v1'
 };
 
+// Safe LocalStorage Wrappers with QuotaExceededError Protection
+const safeGetLocalStorage = (key: string) => {
+  try {
+    return localStorage.getItem(key);
+  } catch (err) {
+    console.warn(`[LocalStorage Read Warning] Could not read "${key}":`, err);
+    return null;
+  }
+};
+
+const safeSetLocalStorage = (key: string, value: string) => {
+  try {
+    localStorage.setItem(key, value);
+  } catch (err) {
+    console.warn(`[LocalStorage QuotaExceeded] Could not save "${key}". Storage quota exceeded.`, err);
+    if (key === STORAGE_KEYS.SHOPPING) {
+      try {
+        const items: ShoppingItem[] = JSON.parse(value);
+        const stripped = items.map(item => {
+          if (item.imageUrl && item.imageUrl.length > 50000) {
+            return { ...item, imageUrl: undefined };
+          }
+          return item;
+        });
+        localStorage.setItem(key, JSON.stringify(stripped));
+      } catch (fallbackErr) {
+        console.warn('Fallback LocalStorage save failed:', fallbackErr);
+      }
+    }
+  }
+};
+
 export function useHomeStore() {
   // 1. Users state
   const [users, setUsers] = useState<UserProfile[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.USERS);
+    const saved = safeGetLocalStorage(STORAGE_KEYS.USERS);
     return saved ? JSON.parse(saved) : INITIAL_USERS;
   });
 
   const [activeUserId, setActiveUserId] = useState<UserId>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.ACTIVE_USER) as UserId;
+    const saved = safeGetLocalStorage(STORAGE_KEYS.ACTIVE_USER) as UserId;
     return saved || 'everyone';
   });
 
   // 2. Custom stores list
   const [stores, setStores] = useState<StoreTag[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.STORES);
+    const saved = safeGetLocalStorage(STORAGE_KEYS.STORES);
     return saved ? JSON.parse(saved) : DEFAULT_STORES;
   });
 
@@ -37,19 +69,19 @@ export function useHomeStore() {
 
   // 4. Shopping state
   const [shoppingItems, setShoppingItems] = useState<ShoppingItem[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.SHOPPING);
+    const saved = safeGetLocalStorage(STORAGE_KEYS.SHOPPING);
     return saved ? JSON.parse(saved) : INITIAL_SHOPPING;
   });
 
   // 5. Todos state
   const [todos, setTodos] = useState<TodoTask[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.TODOS);
+    const saved = safeGetLocalStorage(STORAGE_KEYS.TODOS);
     return saved ? JSON.parse(saved) : INITIAL_TODOS;
   });
 
   // 6. Bills state
   const [bills, setBills] = useState<BillItem[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.BILLS);
+    const saved = safeGetLocalStorage(STORAGE_KEYS.BILLS);
     return saved ? JSON.parse(saved) : INITIAL_BILLS;
   });
 
@@ -133,27 +165,27 @@ export function useHomeStore() {
 
   // LocalStorage Persistence Effects
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
+    safeSetLocalStorage(STORAGE_KEYS.USERS, JSON.stringify(users));
   }, [users]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.ACTIVE_USER, activeUserId);
+    safeSetLocalStorage(STORAGE_KEYS.ACTIVE_USER, activeUserId);
   }, [activeUserId]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.STORES, JSON.stringify(stores));
+    safeSetLocalStorage(STORAGE_KEYS.STORES, JSON.stringify(stores));
   }, [stores]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.SHOPPING, JSON.stringify(shoppingItems));
+    safeSetLocalStorage(STORAGE_KEYS.SHOPPING, JSON.stringify(shoppingItems));
   }, [shoppingItems]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.TODOS, JSON.stringify(todos));
+    safeSetLocalStorage(STORAGE_KEYS.TODOS, JSON.stringify(todos));
   }, [todos]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.BILLS, JSON.stringify(bills));
+    safeSetLocalStorage(STORAGE_KEYS.BILLS, JSON.stringify(bills));
   }, [bills]);
 
   // Helper to get authenticated user ID
