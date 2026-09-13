@@ -74,6 +74,8 @@ export function useHomeStore() {
             imageUrl: r.image_url || undefined
           }));
           setShoppingItems(mapped);
+        } else {
+          setShoppingItems([]);
         }
 
         const { data: remoteTodos } = await supabase!.from('todo_tasks').select('*');
@@ -88,6 +90,8 @@ export function useHomeStore() {
             isCompleted: r.is_completed || false
           }));
           setTodos(mapped);
+        } else {
+          setTodos([]);
         }
 
         const { data: remoteStores } = await supabase!.from('stores').select('name');
@@ -140,8 +144,15 @@ export function useHomeStore() {
     localStorage.setItem(STORAGE_KEYS.BILLS, JSON.stringify(bills));
   }, [bills]);
 
+  // Helper to get authenticated user ID
+  const getAuthUserId = async () => {
+    if (!isSupabaseConfigured || !supabase) return null;
+    const { data } = await supabase.auth.getSession();
+    return data.session?.user?.id || null;
+  };
+
   // Actions: Add Custom Family Profile
-  const addCustomUser = (name: string, color: string = '#f59e0b') => {
+  const addCustomUser = async (name: string, color: string = '#f59e0b') => {
     const trimmed = name.trim();
     if (!trimmed) return;
     const avatar = trimmed.substring(0, 2).toUpperCase();
@@ -160,9 +171,11 @@ export function useHomeStore() {
       return everyone ? [...others, newUser, everyone] : [...prev, newUser];
     });
 
-    if (isSupabaseConfigured && supabase) {
+    const userId = await getAuthUserId();
+    if (isSupabaseConfigured && supabase && userId) {
       supabase.from('family_profiles').insert([{
         id: newUser.id,
+        user_id: userId,
         name: newUser.name,
         avatar: newUser.avatar,
         color: newUser.color,
@@ -172,19 +185,20 @@ export function useHomeStore() {
   };
 
   // Actions: Custom Stores
-  const addCustomStore = (newStoreName: string) => {
+  const addCustomStore = async (newStoreName: string) => {
     const trimmed = newStoreName.trim();
     if (trimmed && !stores.includes(trimmed)) {
       setStores(prev => [...prev, trimmed]);
 
-      if (isSupabaseConfigured && supabase) {
-        supabase.from('stores').insert([{ name: trimmed }]).then();
+      const userId = await getAuthUserId();
+      if (isSupabaseConfigured && supabase && userId) {
+        supabase.from('stores').insert([{ user_id: userId, name: trimmed }]).then();
       }
     }
   };
 
   // Actions: Shopping
-  const addShoppingItem = (item: Omit<ShoppingItem, 'id' | 'isCompleted'>) => {
+  const addShoppingItem = async (item: Omit<ShoppingItem, 'id' | 'isCompleted'>) => {
     const newItem: ShoppingItem = {
       ...item,
       id: `shop-${Date.now()}`,
@@ -192,9 +206,11 @@ export function useHomeStore() {
     };
     setShoppingItems(prev => [newItem, ...prev]);
 
-    if (isSupabaseConfigured && supabase) {
+    const userId = await getAuthUserId();
+    if (isSupabaseConfigured && supabase && userId) {
       supabase.from('shopping_items').insert([{
         id: newItem.id,
+        user_id: userId,
         title: newItem.title,
         quantity: newItem.quantity,
         estimated_price: newItem.estimatedPrice,
@@ -244,7 +260,7 @@ export function useHomeStore() {
   };
 
   // Actions: Todos
-  const addTodoTask = (task: Omit<TodoTask, 'id' | 'isCompleted'>) => {
+  const addTodoTask = async (task: Omit<TodoTask, 'id' | 'isCompleted'>) => {
     const newTask: TodoTask = {
       ...task,
       id: `todo-${Date.now()}`,
@@ -252,9 +268,11 @@ export function useHomeStore() {
     };
     setTodos(prev => [newTask, ...prev]);
 
-    if (isSupabaseConfigured && supabase) {
+    const userId = await getAuthUserId();
+    if (isSupabaseConfigured && supabase && userId) {
       supabase.from('todo_tasks').insert([{
         id: newTask.id,
+        user_id: userId,
         title: newTask.title,
         category: newTask.category,
         priority: newTask.priority,

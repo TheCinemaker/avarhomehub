@@ -19,9 +19,9 @@ Kiemelt elrendezés és működés:
 ---
 
 ## 2. Current Status (Jelenlegi Állapot)
-- **Verzió**: 3.0.0 (Teljes Supabase integráció, `supabase_schema.sql` táblascript, Bejelentkezési & Regisztrációs felület automatikus munkamenet-megjegyzéssel, Új egyedi családtagok hozzáadása, Termékfotók & Boltok felhő szinkronja)
-- **Perzisztencia**: Supabase Auth & Cloud Database + LocalStorage offline-first fallback.
-- **Dizájn**: Full screen modal, 40% áttetsző sticky header, sűrű felsorolás nézet, 7-oszlopos Naptár Grid, Auth Modál.
+- **Verzió**: 4.0.0 (Szigorú Auth Screen Bejelentkezési Kapu, Supabase `user_id` Fiók Izoláció, Új regisztráció automatikus családi profil inicializálással, Adatvédelem)
+- **Perzisztencia**: Supabase Auth & Multi-tenant Cloud Database + LocalStorage offline fallback.
+- **Dizájn**: Full screen Auth Screen kapu, full screen item modal, 40% áttetsző sticky header, 7-oszlopos Naptár Grid.
 
 ---
 

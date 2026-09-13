@@ -9,6 +9,7 @@ import { BillsTab } from './components/BillsTab';
 import { SettingsTab } from './components/SettingsTab';
 import { CalendarTab } from './components/CalendarTab';
 import { CalendarModal } from './components/CalendarModal';
+import { AuthScreen } from './components/AuthScreen';
 import { AuthModal } from './components/AuthModal';
 import { ShoppingCart, CheckSquare, CreditCard, Settings, Calendar, LogIn, Database, X } from 'lucide-react';
 
@@ -19,20 +20,38 @@ export function App() {
   const [isCalendarModalOpen, setIsCalendarModalOpen] = useState(false);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [sessionUser, setSessionUser] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
 
   useEffect(() => {
     if (isSupabaseConfigured && supabase) {
       supabase.auth.getSession().then(({ data: { session } }) => {
         setSessionUser(session?.user || null);
+        setAuthLoading(false);
       });
 
       const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
         setSessionUser(session?.user || null);
+        setAuthLoading(false);
       });
 
       return () => subscription.unsubscribe();
+    } else {
+      setAuthLoading(false);
     }
   }, []);
+
+  // STRICT AUTH GATE: Hide entire app if not logged in!
+  if (authLoading) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#090d16', color: '#818cf8', fontWeight: 700 }}>
+        HomeHub betöltése...
+      </div>
+    );
+  }
+
+  if (isSupabaseConfigured && !sessionUser) {
+    return <AuthScreen onLoginSuccess={user => setSessionUser(user)} />;
+  }
 
   // User list order: Apa, Anya, Ármin, + Custom Users, Mindenki
   const defaultOrder = ['apa', 'anya', 'gyerek'];
