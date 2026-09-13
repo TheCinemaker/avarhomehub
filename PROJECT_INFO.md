@@ -1,6 +1,7 @@
 # HomeHub - Otthoni Családi Rendszerező & To-Do Webalkalmazás
 
 **Projekt Helye (IDE Workspace)**: `/Users/thecinemaker/.gemini/antigravity-ide/scratch/home-organizer`  
+**GitHub Repository**: `https://github.com/TheCinemaker/avarhomehub`  
 **Desktop Index**: `PROJECTS/Home_Organizer/`
 
 ---
