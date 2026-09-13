@@ -130,6 +130,7 @@ export function App() {
             stores={store.stores}
             onAddCustomStore={store.addCustomStore}
             onAddItem={store.addShoppingItem}
+            onUpdateItem={store.updateShoppingItem}
             onToggleItem={store.toggleShoppingItem}
             onReassignItem={store.reassignShoppingItem}
             onDeleteItem={store.deleteShoppingItem}

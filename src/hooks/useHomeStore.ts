@@ -303,6 +303,29 @@ export function useHomeStore() {
     }
   };
 
+  const updateShoppingItem = (id: string, updates: Partial<ShoppingItem>) => {
+    setShoppingItems(prev =>
+      prev.map(item => (item.id === id ? { ...item, ...updates } : item))
+    );
+
+    if (isSupabaseConfigured && supabase) {
+      const dbPayload: any = {};
+      if (updates.title !== undefined) dbPayload.title = updates.title;
+      if (updates.quantity !== undefined) dbPayload.quantity = updates.quantity;
+      if (updates.estimatedPrice !== undefined) dbPayload.estimated_price = updates.estimatedPrice;
+      if (updates.store !== undefined) dbPayload.store = updates.store;
+      if (updates.category !== undefined) dbPayload.category = updates.category;
+      if (updates.assignedUser !== undefined) dbPayload.assigned_user = updates.assignedUser;
+      if (updates.imageUrl !== undefined) dbPayload.image_url = updates.imageUrl;
+      if (updates.isCompleted !== undefined) dbPayload.is_completed = updates.isCompleted;
+      if (updates.date !== undefined) dbPayload.date = updates.date;
+
+      if (Object.keys(dbPayload).length > 0) {
+        supabase.from('shopping_items').update(dbPayload).eq('id', id).then();
+      }
+    }
+  };
+
   // Actions: Todos
   const addTodoTask = async (task: Omit<TodoTask, 'id' | 'isCompleted'>) => {
     const newTask: TodoTask = {
@@ -464,6 +487,7 @@ export function useHomeStore() {
     setSelectedDate,
     shoppingItems,
     addShoppingItem,
+    updateShoppingItem,
     toggleShoppingItem,
     reassignShoppingItem,
     deleteShoppingItem,

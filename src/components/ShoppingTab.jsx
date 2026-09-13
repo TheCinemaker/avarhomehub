@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ShoppingCart, Plus, Trash2, Check, Store, X, Maximize2, UserPlus, ShoppingBag, Camera, Image, Filter } from 'lucide-react';
+import { ShoppingCart, Plus, Trash2, Check, Store, X, Maximize2, UserPlus, ShoppingBag, Camera, Image, Filter, Pencil, Save } from 'lucide-react';
 
 const DEFAULT_STORES = ['Lidl', 'Aldi', 'SPAR', 'Tesco', 'Penny', 'Auchan', 'DM', 'Rossmann', 'Egyéb'];
 const CATEGORIES = ['Élelmiszer', 'Háztartás', 'Gyógyszertár', 'Barkács', 'Személyes', 'Egyéb'];
@@ -12,6 +12,7 @@ export const ShoppingTab = ({
   stores = DEFAULT_STORES,
   onAddCustomStore,
   onAddItem,
+  onUpdateItem,
   onToggleItem,
   onReassignItem,
   onDeleteItem
@@ -20,6 +21,18 @@ export const ShoppingTab = ({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isStoreModeOpen, setIsStoreModeOpen] = useState(false);
   const [detailItem, setDetailItem] = useState(null);
+
+  // Edit Item Modal State
+  const [editingItem, setEditingItem] = useState(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [editQuantity, setEditQuantity] = useState('');
+  const [editEstimatedPrice, setEditEstimatedPrice] = useState('');
+  const [editStore, setEditStore] = useState('Lidl');
+  const [editCategory, setEditCategory] = useState('Élelmiszer');
+  const [editAssignedUser, setEditAssignedUser] = useState(activeUserId);
+  const [editImageUrl, setEditImageUrl] = useState('');
+  const [isAddingEditCustomStore, setIsAddingEditCustomStore] = useState(false);
+  const [editCustomStoreName, setEditCustomStoreName] = useState('');
 
   // Custom Store Addition in Modal State
   const [isAddingCustomStore, setIsAddingCustomStore] = useState(false);
@@ -104,6 +117,68 @@ export const ShoppingTab = ({
         reader.readAsDataURL(file);
       }
     }
+  };
+
+  // Start Editing an Item
+  const startEditing = (item) => {
+    setEditingItem(item);
+    setEditTitle(item.title || '');
+    setEditQuantity(item.quantity || '');
+    setEditEstimatedPrice(item.estimatedPrice ? String(item.estimatedPrice) : '');
+    setEditStore(item.store || 'Lidl');
+    setEditCategory(item.category || 'Élelmiszer');
+    setEditAssignedUser(item.assignedUser || activeUserId);
+    setEditImageUrl(item.imageUrl || '');
+    setIsAddingEditCustomStore(false);
+    setEditCustomStoreName('');
+  };
+
+  const handleEditPhotoUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      try {
+        const compressedDataUrl = await compressImage(file, 600, 600, 0.7);
+        setEditImageUrl(compressedDataUrl);
+      } catch (err) {
+        console.error('Image compression failed for edit:', err);
+        const reader = new FileReader();
+        reader.onload = ev => {
+          if (ev.target?.result) setEditImageUrl(ev.target.result);
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+  };
+
+  const handleSaveEditCustomStore = () => {
+    const trimmed = editCustomStoreName.trim();
+    if (trimmed) {
+      if (onAddCustomStore) {
+        onAddCustomStore(trimmed);
+      }
+      setEditStore(trimmed);
+      setEditCustomStoreName('');
+      setIsAddingEditCustomStore(false);
+    }
+  };
+
+  const handleEditSubmit = (e) => {
+    e.preventDefault();
+    if (!editingItem || !editTitle.trim()) return;
+
+    if (onUpdateItem) {
+      onUpdateItem(editingItem.id, {
+        title: editTitle.trim(),
+        quantity: editQuantity.trim() || undefined,
+        estimatedPrice: Number(editEstimatedPrice) || 0,
+        store: editStore,
+        category: editCategory,
+        assignedUser: editAssignedUser,
+        imageUrl: editImageUrl.trim() || undefined
+      });
+    }
+
+    setEditingItem(null);
   };
 
   const handleSaveCustomStore = () => {
@@ -233,7 +308,8 @@ export const ShoppingTab = ({
             <div
               key={item.id}
               className={`compact-item-card ${item.isCompleted ? 'completed' : ''}`}
-              onClick={() => setDetailItem(item)}
+              onClick={() => startEditing(item)}
+              title="Kattints a tétel szerkesztéséhez"
             >
               <div className="compact-item-left">
                 <div
@@ -298,6 +374,18 @@ export const ShoppingTab = ({
                     </option>
                   ))}
                 </select>
+
+                <button
+                  className="btn-icon"
+                  style={{ width: '28px', height: '28px', color: '#38bdf8' }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    startEditing(item);
+                  }}
+                  title="Tétel szerkesztése (mennyiség, név, ár)"
+                >
+                  <Pencil size={14} />
+                </button>
 
                 <button
                   className="btn-icon"
@@ -742,6 +830,205 @@ export const ShoppingTab = ({
                 <button type="submit" className="btn-primary" style={{ padding: '0.75rem 2rem', fontSize: '1rem' }}>
                   Tétel Mentése a Listába
                 </button>
+              </div>
+            </form>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* EDIT SHOPPING ITEM MODAL (Portal to document.body for true mobile overlay) */}
+      {editingItem && createPortal(
+        <div className="modal-overlay full-screen-modal-overlay" style={{ zIndex: 9999 }} onClick={() => setEditingItem(null)}>
+          <div className="modal-content full-screen-modal-content" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2 style={{ fontSize: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Pencil size={20} style={{ color: '#38bdf8' }} /> Tétel Szerkesztése
+              </h2>
+              <button className="btn-icon" onClick={() => setEditingItem(null)}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleEditSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '0.5rem' }}>
+              <div className="form-group">
+                <label style={{ fontWeight: 600 }}>Tétel megnevezése *</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="pl. Zsemle, Tej, Kávé"
+                  value={editTitle}
+                  onChange={e => setEditTitle(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label style={{ fontWeight: 600 }}>Mennyiség (pl. 8 db, 8 zsemle)</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="pl. 8 db, 2L, 50 dkg"
+                    value={editQuantity}
+                    onChange={e => setEditQuantity(e.target.value)}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label style={{ fontWeight: 600 }}>Becsült ár (Ft)</label>
+                  <input
+                    type="number"
+                    className="form-input"
+                    placeholder="0"
+                    value={editEstimatedPrice}
+                    onChange={e => setEditEstimatedPrice(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="form-row">
+                <div className="form-group">
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
+                    <label style={{ fontWeight: 600 }}>Bolt / Üzlet</label>
+                    {!isAddingEditCustomStore && (
+                      <button
+                        type="button"
+                        style={{ background: 'none', border: 'none', color: '#38bdf8', fontSize: '0.75rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.2rem' }}
+                        onClick={() => setIsAddingEditCustomStore(true)}
+                      >
+                        <Plus size={12} /> Új bolt
+                      </button>
+                    )}
+                  </div>
+
+                  {isAddingEditCustomStore ? (
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <input
+                        type="text"
+                        className="form-input"
+                        placeholder="Bolt neve (pl. Spar, Penny)"
+                        value={editCustomStoreName}
+                        onChange={e => setEditCustomStoreName(e.target.value)}
+                        autoFocus
+                      />
+                      <button type="button" className="btn-primary" onClick={handleSaveEditCustomStore} style={{ padding: '0.5rem 0.85rem' }}>
+                        Hozzáadás
+                      </button>
+                    </div>
+                  ) : (
+                    <select
+                      className="form-select"
+                      value={editStore}
+                      onChange={e => {
+                        if (e.target.value === '__add_new__') {
+                          setIsAddingEditCustomStore(true);
+                        } else {
+                          setEditStore(e.target.value);
+                        }
+                      }}
+                    >
+                      {availableStores.map(st => (
+                        <option key={st} value={st}>{st}</option>
+                      ))}
+                      <option value="__add_new__">+ Új bolt hozzáadása...</option>
+                    </select>
+                  )}
+                </div>
+
+                <div className="form-group">
+                  <label style={{ fontWeight: 600 }}>Kategória</label>
+                  <select
+                    className="form-select"
+                    value={editCategory}
+                    onChange={e => setEditCategory(e.target.value)}
+                  >
+                    {CATEGORIES.map(cat => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label style={{ fontWeight: 600 }}>Felelős</label>
+                <select
+                  className="form-select"
+                  value={editAssignedUser}
+                  onChange={e => setEditAssignedUser(e.target.value)}
+                >
+                  {users.map(u => (
+                    <option key={u.id} value={u.id}>
+                      {u.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label style={{ fontWeight: 600 }}>Termék Fotója (opcionális)</label>
+                <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    id="edit-photo-file-input"
+                    onChange={handleEditPhotoUpload}
+                    style={{ display: 'none' }}
+                  />
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={() => document.getElementById('edit-photo-file-input')?.click()}
+                    style={{ padding: '0.75rem 1.25rem', fontSize: '0.95rem', background: 'rgba(56, 189, 248, 0.15)', borderColor: 'rgba(56, 189, 248, 0.4)', color: '#38bdf8' }}
+                  >
+                    <Image size={18} /> Fotó feltöltése / csere
+                  </button>
+
+                  {editImageUrl && (
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      onClick={() => setEditImageUrl('')}
+                      style={{ color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.3)' }}
+                    >
+                      <X size={16} /> Fotó törlése
+                    </button>
+                  )}
+                </div>
+
+                {editImageUrl && (
+                  <div style={{ marginTop: '0.75rem', textAlign: 'center', background: '#090d16', padding: '0.75rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-glass)' }}>
+                    <img src={editImageUrl} alt="Előnézet" style={{ maxHeight: '180px', borderRadius: '8px', objectFit: 'contain' }} />
+                  </div>
+                )}
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', marginTop: '1rem' }}>
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  style={{ color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.4)' }}
+                  onClick={() => {
+                    onDeleteItem(editingItem.id);
+                    setEditingItem(null);
+                  }}
+                >
+                  <Trash2 size={16} /> Törlés
+                </button>
+
+                <div style={{ display: 'flex', gap: '0.75rem' }}>
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={() => setEditingItem(null)}
+                  >
+                    Mégse
+                  </button>
+
+                  <button type="submit" className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.75rem 1.5rem' }}>
+                    <Save size={18} /> Változtatások Mentése
+                  </button>
+                </div>
               </div>
             </form>
           </div>
