@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useHomeStore } from './hooks/useHomeStore';
+import { supabase, isSupabaseConfigured } from './supabaseClient';
 import { Header } from './components/Header';
 import { DayNavigator } from './components/DayNavigator';
 import { ShoppingTab } from './components/ShoppingTab';
@@ -17,6 +18,21 @@ export function App() {
   const [activeTab, setActiveTab] = useState('shopping');
   const [isCalendarModalOpen, setIsCalendarModalOpen] = useState(false);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [sessionUser, setSessionUser] = useState(null);
+
+  useEffect(() => {
+    if (isSupabaseConfigured && supabase) {
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        setSessionUser(session?.user || null);
+      });
+
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+        setSessionUser(session?.user || null);
+      });
+
+      return () => subscription.unsubscribe();
+    }
+  }, []);
 
   // User list order: Apa, Anya, Ármin, + Custom Users, Mindenki
   const defaultOrder = ['apa', 'anya', 'gyerek'];
@@ -28,8 +44,8 @@ export function App() {
 
   return (
     <div>
-      {/* 1. Sticky Header (40% transparent, HomeHub a rendszerező, Login) */}
-      <Header onOpenLogin={() => setIsLoginModalOpen(true)} />
+      {/* 1. Sticky Header (40% transparent, HomeHub a rendszerező, Login/Fiók) */}
+      <Header sessionUser={sessionUser} onOpenLogin={() => setIsLoginModalOpen(true)} />
 
       <div className="app-container">
         {/* 2. User Switcher Bar (Single Row: Apa, Anya, Ármin, + Custom, Mindenki) */}
