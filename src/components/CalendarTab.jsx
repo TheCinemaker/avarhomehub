@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { CalendarDays, ChevronLeft, ChevronRight, Plus, Check, Trash2, Clock, Calendar as CalendarIcon, RotateCcw } from 'lucide-react';
-import { parseIsoDate, todayIso } from '../utils/date';
+import { parseIsoDate, todayIso, formatLong } from '../utils/date';
 
 export const CalendarTab = ({
   selectedDate,
@@ -76,13 +76,8 @@ export const CalendarTab = ({
     return matchesUser && t.date === selectedDate;
   });
 
-  const parsedSelected = parseIsoDate(selectedDate);
-  const selectedDateFormatted = parsedSelected.toLocaleDateString('hu-HU', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    weekday: 'long'
-  });
+  // Az évszám csak akkor kell, ha nem az idei — lásd utils/date.js
+  const selectedDateFormatted = formatLong(selectedDate);
 
   const handleAddQuickTodo = (e) => {
     e.preventDefault();
@@ -99,16 +94,12 @@ export const CalendarTab = ({
   };
 
   return (
-    <div className="glass-panel" style={{ padding: '1.25rem' }}>
+    <div className="glass-panel panel-pad">
       {/* Action Header */}
       <div className="action-header" style={{ marginBottom: '1.25rem' }}>
         <div>
-          <h2 style={{ fontSize: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <CalendarDays size={22} style={{ color: '#818cf8' }} /> Havi Naptár & Napi Áttekintő
-          </h2>
-          <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-            Kattints a rácsban bármelyik napra a teendők azonnali kezeléséhez
-          </p>
+          <h2><CalendarDays size={18} /> Naptár</h2>
+          <p className="panel-sub">Válassz napot a rácsban a teendők kezeléséhez.</p>
         </div>
 
         <button
@@ -117,23 +108,20 @@ export const CalendarTab = ({
             onSelectDate(todayStr);
             setCurrentMonthDate(new Date());
           }}
-          style={{ padding: '0.5rem 0.9rem', fontSize: '0.85rem', background: 'rgba(56, 189, 248, 0.15)', borderColor: 'rgba(56, 189, 248, 0.4)', color: '#38bdf8' }}
         >
-          <RotateCcw size={15} /> Ugrás a mai napra ({todayStr})
+          <RotateCcw size={14} /> Mai nap
         </button>
       </div>
 
       {/* Month Navigator Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.85rem', background: 'rgba(15, 23, 42, 0.7)', padding: '0.65rem 1rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-glass)' }}>
-        <h3 style={{ fontSize: '1.15rem', textTransform: 'capitalize', fontWeight: 800, color: 'var(--text-main)' }}>
-          {monthName}
-        </h3>
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <button className="nav-arrow-btn" onClick={prevMonth} title="Előző hónap">
-            <ChevronLeft size={20} />
+      <div className="month-nav">
+        <h3 className="month-name">{monthName}</h3>
+        <div style={{ display: 'flex', gap: '6px' }}>
+          <button className="nav-arrow-btn" onClick={prevMonth} title="Előző hónap" aria-label="Előző hónap">
+            <ChevronLeft size={17} />
           </button>
-          <button className="nav-arrow-btn" onClick={nextMonth} title="Következő hónap">
-            <ChevronRight size={20} />
+          <button className="nav-arrow-btn" onClick={nextMonth} title="Következő hónap" aria-label="Következő hónap">
+            <ChevronRight size={17} />
           </button>
         </div>
       </div>
@@ -182,7 +170,7 @@ export const CalendarTab = ({
                 )}
                 {cell.completedCount > 0 && cell.pendingCount === 0 && (
                   <span className="calendar-task-badge completed" title="Minden kész">
-                    ✓
+                    <Check size={11} strokeWidth={3} />
                   </span>
                 )}
               </div>
@@ -192,65 +180,40 @@ export const CalendarTab = ({
       </div>
 
       {/* Selected Date Agenda Details */}
-      <div style={{ background: 'rgba(15, 23, 42, 0.7)', padding: '1.25rem', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-glass)' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem', flexWrap: 'wrap', gap: '0.5rem' }}>
-          <div>
-            <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: '#818cf8', textTransform: 'capitalize', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-              <Clock size={18} /> {selectedDateFormatted}
-            </h3>
-            <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-              Dátum: <span style={{ color: 'var(--text-main)', fontWeight: 600 }}>{selectedDate}</span>
-            </p>
-          </div>
-
-          <span style={{ fontSize: '0.825rem', padding: '0.25rem 0.65rem', borderRadius: 'var(--radius-full)', background: 'rgba(129, 140, 248, 0.15)', color: '#818cf8', fontWeight: 700 }}>
-            {selectedDayTodos.length} teendő
-          </span>
+      <div className="day-agenda">
+        <div className="day-agenda-head">
+          <h3 className="day-agenda-title">{selectedDateFormatted}</h3>
+          <span className="badge badge-today">{selectedDayTodos.length} teendő</span>
         </div>
 
         {/* Quick Add Todo for Selected Date */}
-        <form onSubmit={handleAddQuickTodo} style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
+        <form onSubmit={handleAddQuickTodo} className="quick-add">
           <input
             type="text"
             className="form-input"
-            placeholder={`+ Új teendő erre a napra (${selectedDate})...`}
+            placeholder="Új teendő erre a napra…"
             value={newTodoTitle}
             onChange={e => setNewTodoTitle(e.target.value)}
-            style={{ flex: '1 1 180px', width: 'auto' }}
           />
-          <button type="submit" className="btn-primary" style={{ padding: '0.65rem 1.25rem', fontSize: '0.9rem', whiteSpace: 'nowrap' }}>
-            <Plus size={16} /> Hozzáadás
+          <button type="submit" className="btn-primary">
+            <Plus size={16} /> <span className="hide-on-tiny">Hozzáadás</span>
           </button>
         </form>
 
         {/* List of Todos for Selected Date */}
         {selectedDayTodos.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '1.5rem', color: 'var(--text-muted)', background: 'rgba(15, 23, 42, 0.4)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-glass)' }}>
-            <CalendarIcon size={28} style={{ opacity: 0.3, marginBottom: '0.3rem' }} />
-            <p style={{ fontSize: '0.875rem' }}>Ezen a napon ({selectedDate}) nincsenek feljegyezve teendők.</p>
+          <div className="empty-state" style={{ padding: '24px' }}>
+            <CalendarIcon size={24} />
+            <p>Erre a napra nincs teendő.</p>
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
             {selectedDayTodos.map(task => (
               <div
                 key={task.id}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  // `justify` nem létező React style prop volt — csendben
-                  // eldobódott, ezért a jobb oldali vezérlők nem a szélre
-                  // igazodtak.
-                  justifyContent: 'space-between',
-                  gap: '0.5rem',
-                  flexWrap: 'wrap',
-                  padding: '0.75rem 1rem',
-                  background: 'rgba(30, 41, 59, 0.6)',
-                  borderRadius: 'var(--radius-md)',
-                  border: '1px solid var(--border-glass)',
-                  opacity: task.isCompleted ? 0.6 : 1
-                }}
+                className={`item-card ${task.isCompleted ? 'completed' : ''}`}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1 }}>
+                <div className="item-left">
                   <div
                     className={`checkbox-custom ${task.isCompleted ? 'checked' : ''}`}
                     onClick={() => onToggleTask(task.id)}
@@ -267,12 +230,10 @@ export const CalendarTab = ({
                   >
                     {task.isCompleted && <Check size={14} />}
                   </div>
-                  <span style={{ fontSize: '0.95rem', textDecoration: task.isCompleted ? 'line-through' : 'none', fontWeight: 600 }}>
-                    {task.title}
-                  </span>
+                  <span className="item-title">{task.title}</span>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                <div className="item-right">
                   <select
                     className="assignee-select"
                     value={task.assignedUser}

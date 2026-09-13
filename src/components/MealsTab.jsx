@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Utensils, Search, Plus, ShoppingBag, Trash2, Pencil, Calendar, Check, X, Clock, UserCheck, Sparkles, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useModalBehavior } from '../hooks/useModalBehavior';
-import { parseIsoDate, todayIso, startOfWeek, addDays } from '../utils/date';
+import { parseIsoDate, todayIso, startOfWeek, addDays, formatShort, formatRange } from '../utils/date';
 
 const DAYS_OF_WEEK = [
   { key: 1, name: 'Hétfő' },
@@ -156,45 +156,35 @@ export const MealsTab = ({
     : [];
 
   return (
-    <div className="glass-panel" style={{ padding: '1.25rem' }}>
+    <div className="glass-panel panel-pad">
       {/* Header & Quick Action */}
       <div className="action-header">
         <div>
-          <h2>
-            <Utensils size={24} style={{ color: '#f59e0b' }} />
-            Heti Étlap & Ebéd Ötletek
-          </h2>
-          <p style={{ fontSize: '0.825rem', color: 'var(--text-muted)' }}>
-            Mit együnk a héten? Írjátok be az ötleteket, és másoljátok a hozzávalókat a bevásárlólistára!
-          </p>
+          <h2><Utensils size={18} /> Heti étlap</h2>
+          <p className="panel-sub">Ötletek a hétre — a hozzávalók egy kattintással a bevásárlólistára kerülnek.</p>
         </div>
 
         <button className="btn-primary" onClick={() => startNewMeal(selectedDate)}>
-          <Plus size={18} /> Új Ebéd / Étel Ötlet
+          <Plus size={16} /> Új étel
         </button>
       </div>
 
       {/* SEARCH BAR (Ebéd Visszakereső) */}
-      <div style={{ marginTop: '1rem', marginBottom: '1.25rem' }}>
-        <div style={{ position: 'relative' }}>
-          <Search size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-dim)' }} />
-          <input
-            type="text"
-            className="form-input"
-            placeholder="Keresés régebbi ebédek & receptek között (pl. rakott krumpli, gulyás, spagetti)..."
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            style={{ paddingLeft: '2.75rem', background: 'rgba(15, 23, 42, 0.7)' }}
-          />
-          {searchQuery && (
-            <button
-              onClick={() => setSearchQuery('')}
-              style={{ position: 'absolute', right: '0.75rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
-            >
-              <X size={16} />
-            </button>
-          )}
-        </div>
+      <div className="search-field">
+        <Search size={16} />
+        <input
+          type="text"
+          className="form-input"
+          placeholder="Keresés korábbi ételek között…"
+          value={searchQuery}
+          onChange={e => setSearchQuery(e.target.value)}
+          aria-label="Keresés az ételek között"
+        />
+        {searchQuery && (
+          <button className="search-clear" onClick={() => setSearchQuery('')} aria-label="Keresés törlése">
+            <X size={15} />
+          </button>
+        )}
       </div>
 
       {/* SEARCH RESULTS VIEW */}
@@ -278,7 +268,7 @@ export const MealsTab = ({
                           style={{ marginTop: '0.5rem', padding: '0.35rem 0.75rem', fontSize: '0.8rem', color: isSynced ? '#34d399' : '#38bdf8', borderColor: isSynced ? '#34d399' : 'rgba(56, 189, 248, 0.4)' }}
                         >
                           {isSynced ? <Check size={14} /> : <ShoppingBag size={14} />}
-                          {isSynced ? 'Hozzávalók átmásolva a bevásárlólistára!' : '🛒 Hozzávalók hozzáadása a bevásárlólistához'}
+                          {isSynced ? 'Átmásolva a bevásárlólistára' : 'Hozzávalók a bevásárlólistára'}
                         </button>
                       </div>
                     )}
@@ -291,28 +281,23 @@ export const MealsTab = ({
       ) : (
         /* WEEKLY MENU GRID VIEW */
         <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
-            {/* flexWrap nélkül ez a három gomb együtt szélesebb volt, mint egy
-                360px-es telefon panelje, és vízszintes görgetést okozott */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
-              <button className="btn-secondary" onClick={() => setWeekOffset(prev => prev - 1)} style={{ padding: '0.4rem 0.7rem' }} title="Előző hét">
-                <ChevronLeft size={16} /> <span className="hide-on-tiny">Előző hét</span>
+          <div className="week-nav">
+            <div className="week-nav-buttons">
+              <button className="btn-secondary btn-sm" onClick={() => setWeekOffset(p => p - 1)} title="Előző hét" aria-label="Előző hét">
+                <ChevronLeft size={15} />
               </button>
               <button
-                className={`btn-secondary ${weekOffset === 0 ? 'active' : ''}`}
+                className={`btn-secondary btn-sm ${weekOffset === 0 ? 'active' : ''}`}
                 onClick={() => setWeekOffset(0)}
-                style={{ padding: '0.4rem 0.7rem' }}
               >
-                Mai Hét
+                Ez a hét
               </button>
-              <button className="btn-secondary" onClick={() => setWeekOffset(prev => prev + 1)} style={{ padding: '0.4rem 0.7rem' }} title="Következő hét">
-                <span className="hide-on-tiny">Következő hét</span> <ChevronRight size={16} />
+              <button className="btn-secondary btn-sm" onClick={() => setWeekOffset(p => p + 1)} title="Következő hét" aria-label="Következő hét">
+                <ChevronRight size={15} />
               </button>
             </div>
 
-            <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-              Hét időszaka: <strong style={{ color: '#f59e0b' }}>{weekDates[0]} — {weekDates[6]}</strong>
-            </div>
+            <div className="week-range">{formatRange(weekDates[0], weekDates[6])}</div>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
@@ -325,88 +310,42 @@ export const MealsTab = ({
               const dayMeals = meals.filter(m => m.date === dateStr);
 
               return (
-                <div
-                  key={dateStr}
-                  style={{
-                    padding: '0.85rem 1rem',
-                    background: isToday ? 'rgba(245, 158, 11, 0.08)' : 'rgba(22, 30, 46, 0.6)',
-                    borderRadius: 'var(--radius-md)',
-                    border: isToday ? '2px solid rgba(245, 158, 11, 0.4)' : '1px solid var(--border-glass)'
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                      <span style={{ fontSize: '1rem', fontWeight: 800, color: isToday ? '#f59e0b' : 'var(--text-main)' }}>
-                        {dayObj.name}
-                      </span>
-                      <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{dateStr}</span>
-                      {isToday && (
-                        <span style={{ fontSize: '0.7rem', padding: '0.1rem 0.5rem', background: '#f59e0b', color: '#000', fontWeight: 800, borderRadius: 'var(--radius-full)' }}>
-                          MA
-                        </span>
-                      )}
+                <div key={dateStr} className={`day-row ${isToday ? 'is-today' : ''} ${dayMeals.length === 0 ? 'is-empty' : ''}`}>
+                  <div className="day-row-head">
+                    <div className="day-row-label">
+                      <span className="day-row-name">{dayObj.name}</span>
+                      <span className="day-row-date">{formatShort(dateStr)}</span>
+                      {isToday && <span className="badge badge-today">Ma</span>}
                     </div>
 
-                    <button
-                      className="btn-secondary"
-                      onClick={() => startNewMeal(dateStr)}
-                      style={{ fontSize: '0.775rem', padding: '0.25rem 0.65rem' }}
-                    >
-                      <Plus size={13} /> Étel felvétele
+                    <button className="btn-quiet btn-sm" onClick={() => startNewMeal(dateStr)} title="Étel felvétele erre a napra">
+                      <Plus size={14} /> Felvétel
                     </button>
                   </div>
 
-                  {dayMeals.length === 0 ? (
-                    <div
-                      onClick={() => startNewMeal(dateStr)}
-                      style={{
-                        padding: '0.65rem',
-                        textAlign: 'center',
-                        borderRadius: 'var(--radius-sm)',
-                        border: '1px dashed var(--border-glass)',
-                        color: 'var(--text-dim)',
-                        fontSize: '0.825rem',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      + Kattints ide ételötlet rögzítéséhez erre a napra!
-                    </div>
-                  ) : (
+                  {dayMeals.length === 0 ? null : (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                       {dayMeals.map(meal => {
                         const user = users.find(u => u.id === meal.suggestedBy);
                         const isSynced = syncedMealIds.has(meal.id);
 
                         return (
-                          <div
-                            key={meal.id}
-                            style={{
-                              padding: '0.75rem',
-                              background: 'rgba(15, 23, 42, 0.7)',
-                              borderRadius: 'var(--radius-sm)',
-                              border: '1px solid var(--border-glass)',
-                              display: 'flex',
-                              flexDirection: 'column',
-                              gap: '0.35rem'
-                            }}
-                          >
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                                <span style={{ fontWeight: 800, fontSize: '1rem', color: '#f8fafc' }}>
-                                  {meal.title}
-                                </span>
-                                <span style={{ fontSize: '0.7rem', padding: '0.05rem 0.4rem', borderRadius: 'var(--radius-full)', background: meal.mealType === 'vacsora' ? 'rgba(129, 140, 248, 0.2)' : 'rgba(245, 158, 11, 0.2)', color: meal.mealType === 'vacsora' ? '#818cf8' : '#f59e0b', fontWeight: 700 }}>
+                          <div key={meal.id} className="meal-card">
+                            <div className="meal-card-head">
+                              <div className="meal-title-row">
+                                <span className="meal-title">{meal.title}</span>
+                                <span className="badge badge-category">
                                   {meal.mealType === 'vacsora' ? 'Vacsora' : 'Ebéd'}
                                 </span>
                                 {user && (
-                                  <span style={{ fontSize: '0.75rem', color: user.color, fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
-                                    <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: user.color }}></span>
+                                  <span className="meal-by" style={{ color: user.color }}>
+                                    <span className="user-dot" />
                                     {user.name}
                                   </span>
                                 )}
                               </div>
 
-                              <div style={{ display: 'flex', gap: '0.25rem' }}>
+                              <div style={{ display: 'flex', gap: '2px' }}>
                                 <button className="btn-icon btn-icon-sm" style={{ color: '#38bdf8' }} onClick={() => startEditMeal(meal)} title="Szerkesztés">
                                   <Pencil size={13} />
                                 </button>
@@ -417,16 +356,18 @@ export const MealsTab = ({
                             </div>
 
                             {meal.ingredients && (
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem', marginTop: '0.2rem', flexWrap: 'wrap' }}>
-                                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                                  🛒 {meal.ingredients}
+                              <div className="meal-foot">
+                                <div className="meal-ingredients">
+                                  <ShoppingBag size={13} />
+                                  <span>{meal.ingredients}</span>
                                 </div>
                                 <button
-                                  className="btn-secondary"
+                                  className="btn-quiet btn-sm"
                                   onClick={() => handleCopyIngredients(meal.ingredients, meal.id)}
-                                  style={{ padding: '0.2rem 0.5rem', fontSize: '0.725rem', color: isSynced ? '#34d399' : '#38bdf8' }}
+                                  style={isSynced ? { color: 'var(--ok)' } : undefined}
                                 >
-                                  {isSynced ? 'Átmásolva!' : '+ Másolás bevásárlólistába'}
+                                  {isSynced ? <Check size={13} /> : <Plus size={13} />}
+                                  {isSynced ? 'Átmásolva' : 'Listára'}
                                 </button>
                               </div>
                             )}

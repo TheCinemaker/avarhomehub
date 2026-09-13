@@ -37,6 +37,50 @@ export const addDays = (dateStr, days) => {
   return formatIsoDate(d);
 };
 
+/* --- Emberi formázás ------------------------------------------------------
+   Nyers ISO dátumok (2026-09-07) helyett magyar, olvasható alakok. */
+
+const MONTHS_SHORT = ['jan.', 'febr.', 'márc.', 'ápr.', 'máj.', 'jún.',
+  'júl.', 'aug.', 'szept.', 'okt.', 'nov.', 'dec.'];
+
+const WEEKDAYS = ['vasárnap', 'hétfő', 'kedd', 'szerda', 'csütörtök', 'péntek', 'szombat'];
+
+/** '2026-09-07' → 'szept. 7.' */
+export const formatShort = (dateStr) => {
+  const d = parseIsoDate(dateStr);
+  return `${MONTHS_SHORT[d.getMonth()]} ${d.getDate()}.`;
+};
+
+/** '2026-09-07' → 'hétfő' */
+export const weekdayName = (dateStr) => WEEKDAYS[parseIsoDate(dateStr).getDay()];
+
+/** '2026-09-07' → 'szeptember 7., hétfő' (év csak ha nem az idei) */
+export const formatLong = (dateStr) => {
+  const d = parseIsoDate(dateStr);
+  const year = d.getFullYear() !== new Date().getFullYear() ? `${d.getFullYear()}. ` : '';
+  const month = d.toLocaleDateString('hu-HU', { month: 'long' });
+  return `${year}${month} ${d.getDate()}., ${WEEKDAYS[d.getDay()]}`;
+};
+
+/** Két dátum → 'szept. 7 – 13.' vagy 'szept. 28 – okt. 4.' */
+export const formatRange = (fromStr, toStr) => {
+  const a = parseIsoDate(fromStr);
+  const b = parseIsoDate(toStr);
+  if (a.getMonth() === b.getMonth()) {
+    return `${MONTHS_SHORT[a.getMonth()]} ${a.getDate()} – ${b.getDate()}.`;
+  }
+  return `${MONTHS_SHORT[a.getMonth()]} ${a.getDate()}. – ${MONTHS_SHORT[b.getMonth()]} ${b.getDate()}.`;
+};
+
+/** 'Ma' / 'Holnap' / 'Tegnap', egyébként null (a hívó dönt a tartalékról). */
+export const relativeDayName = (dateStr) => {
+  const today = todayIso();
+  if (dateStr === today) return 'Ma';
+  if (dateStr === addDays(today, 1)) return 'Holnap';
+  if (dateStr === addDays(today, -1)) return 'Tegnap';
+  return null;
+};
+
 /** A dátumot tartalmazó hét hétfője, `weekOffset` héttel eltolva. */
 export const startOfWeek = (dateStr, weekOffset = 0) => {
   const d = parseIsoDate(dateStr);

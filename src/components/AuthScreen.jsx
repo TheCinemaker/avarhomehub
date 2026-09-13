@@ -91,7 +91,8 @@ export const AuthScreen = ({ onLoginSuccess }) => {
         // középen, hanem balra tapadva jelent meg
         justifyContent: 'center',
         padding: '1.25rem',
-        paddingBottom: 'calc(1.25rem + env(safe-area-inset-bottom, 0px))',
+        paddingTop: 'calc(1.25rem + var(--sat))',
+        paddingBottom: 'calc(1.25rem + var(--sab))',
         boxSizing: 'border-box'
       }}
     >

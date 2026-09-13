@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useHomeStore } from './hooks/useHomeStore';
 import { supabase, isSupabaseConfigured } from './supabaseClient';
 import { Header } from './components/Header';
@@ -11,6 +11,19 @@ import { CalendarTab } from './components/CalendarTab';
 import { AuthScreen } from './components/AuthScreen';
 import { AuthModal } from './components/AuthModal';
 import { ShoppingCart, CheckSquare, Settings, Calendar, Utensils } from 'lucide-react';
+
+// Egyetlen forrás a navigációhoz — az asztali fülsáv és a mobil alsó sáv
+// ugyanebből épül, így nem csúszhatnak szét egymástól.
+const TABS = [
+  { id: 'shopping', label: 'Bevásárlás', Icon: ShoppingCart },
+  { id: 'meals', label: 'Heti étlap', Icon: Utensils },
+  { id: 'todos', label: 'Teendők', Icon: CheckSquare },
+  { id: 'calendar', label: 'Naptár', Icon: Calendar },
+  { id: 'settings', label: 'Profilok', Icon: Settings }
+];
+
+// Ezeken a füleken szűr ténylegesen a kiválasztott nap.
+const DATE_AWARE_TABS = ['todos', 'meals'];
 
 export function App() {
   const store = useHomeStore();
@@ -38,6 +51,25 @@ export function App() {
     }
   }, []);
 
+  // A választósáv mobilon vízszintesen görgethető. Ha az aktív családtag a
+  // sáv végén áll, görgetés nélkül nem látszana, hogy ki van kiválasztva.
+  const switcherRef = useRef(null);
+  const activePillRef = useRef(null);
+  const didScrollSwitcher = useRef(false);
+
+  useEffect(() => {
+    const bar = switcherRef.current;
+    const pill = activePillRef.current;
+    if (!bar || !pill || bar.scrollWidth <= bar.clientWidth) return;
+
+    const barRect = bar.getBoundingClientRect();
+    const pillRect = pill.getBoundingClientRect();
+    const delta = (pillRect.left - barRect.left) - (barRect.width - pillRect.width) / 2;
+
+    bar.scrollBy({ left: delta, behavior: didScrollSwitcher.current ? 'smooth' : 'auto' });
+    didScrollSwitcher.current = true;
+  }, [store.activeUserId, store.users.length]);
+
   // STRICT AUTH GATE: Hide entire app if not logged in!
   if (authLoading) {
     return (
@@ -55,84 +87,61 @@ export function App() {
   // tartja karban — itt már csak megjelenítjük.
   const orderedUsers = store.users;
 
+
   return (
     <div>
       {/* 1. Sticky Header (40% transparent, HomeHub a rendszerező, Login/Fiók) */}
       <Header sessionUser={sessionUser} onOpenLogin={() => setIsLoginModalOpen(true)} />
 
       <div className="app-container">
-        {/* 2. User Switcher Bar (Single Row: Apa, Anya, Ármin, + Custom, Mindenki) */}
-        <div className="user-switcher-bar">
+        {/* Családtag-választó.
+            Az aktív állapotot a családtag színe jelzi egy pöttyel — nem a
+            teljes gomb élénk kitöltése, ami több profilnál zajossá vált. */}
+        <div className="user-switcher-bar" role="group" aria-label="Családtag szűrő" ref={switcherRef}>
           {orderedUsers.map(u => {
             const isActive = u.id === store.activeUserId;
             return (
               <button
                 key={u.id}
+                ref={isActive ? activePillRef : null}
                 className={`user-pill-btn ${isActive ? 'active' : ''}`}
                 onClick={() => store.setActiveUserId(u.id)}
-                style={isActive ? { background: u.color } : {}}
                 title={u.name}
                 aria-pressed={isActive}
               >
-                <span className="user-avatar-badge">{u.avatar}</span>
+                <span className="user-dot" style={{ color: u.color }} />
                 <span className="user-pill-name">{u.name}</span>
               </button>
             );
           })}
         </div>
 
-        {/* 3. Day Navigator Calendar Strip (Default today) */}
-        <DayNavigator
-          selectedDate={store.selectedDate}
-          onSelectDate={store.setSelectedDate}
-          onOpenCalendar={() => setActiveTab('calendar')}
-        />
+        {/* Napválasztó csík — csak ott, ahol a dátumnak jelentése van.
+            A bevásárlólista nem dátum szerint szűr, a Profilok fülön pedig
+            végképp nincs értelme, ezért ott korábban csak zajt jelentett. */}
+        {DATE_AWARE_TABS.includes(activeTab) && (
+          <DayNavigator
+            selectedDate={store.selectedDate}
+            onSelectDate={store.setSelectedDate}
+            onOpenCalendar={() => setActiveTab('calendar')}
+          />
+        )}
 
-        {/* 4. Fő fül-sáv.
-            Asztalon mind az 5 fül itt van — ott ugyanis nincs alsó navigáció,
-            és korábban a Profilok fül egyáltalán nem volt elérhető nagy
-            képernyőn. Mobilon az utolsó kettőt a CSS elrejti. */}
-        <div className="three-tabs-bar">
-          <button
-            className={`three-tab-btn ${activeTab === 'shopping' ? 'active' : ''}`}
-            onClick={() => setActiveTab('shopping')}
-          >
-            <ShoppingCart size={19} style={{ color: activeTab === 'shopping' ? '#38bdf8' : 'inherit' }} />
-            <span>Bevásárlás</span>
-          </button>
-
-          <button
-            className={`three-tab-btn ${activeTab === 'meals' ? 'active' : ''}`}
-            onClick={() => setActiveTab('meals')}
-          >
-            <Utensils size={19} style={{ color: activeTab === 'meals' ? '#f59e0b' : 'inherit' }} />
-            <span>Heti Étlap</span>
-          </button>
-
-          <button
-            className={`three-tab-btn ${activeTab === 'todos' ? 'active' : ''}`}
-            onClick={() => setActiveTab('todos')}
-          >
-            <CheckSquare size={19} style={{ color: activeTab === 'todos' ? '#818cf8' : 'inherit' }} />
-            <span>Teendők</span>
-          </button>
-
-          <button
-            className={`three-tab-btn tab-btn-desktop-only ${activeTab === 'calendar' ? 'active' : ''}`}
-            onClick={() => setActiveTab('calendar')}
-          >
-            <Calendar size={19} style={{ color: activeTab === 'calendar' ? '#38bdf8' : 'inherit' }} />
-            <span>Naptár</span>
-          </button>
-
-          <button
-            className={`three-tab-btn tab-btn-desktop-only ${activeTab === 'settings' ? 'active' : ''}`}
-            onClick={() => setActiveTab('settings')}
-          >
-            <Settings size={19} style={{ color: activeTab === 'settings' ? '#a855f7' : 'inherit' }} />
-            <span>Profilok</span>
-          </button>
-        </div>
+        {/* Fülsáv — asztali. Mobilon a CSS elrejti, mert ott az alsó sáv
+            navigál; korábban ugyanaz a három cél kétszer szerepelt. */}
+        <nav className="three-tabs-bar" aria-label="Fő navigáció">
+          {TABS.map(tab => (
+            <button
+              key={tab.id}
+              className={`three-tab-btn ${activeTab === tab.id ? 'active' : ''}`}
+              onClick={() => setActiveTab(tab.id)}
+              aria-current={activeTab === tab.id ? 'page' : undefined}
+            >
+              <tab.Icon size={17} />
+              <span>{tab.label}</span>
+            </button>
+          ))}
+        </nav>
 
         {/* 5. Main Content Area (Default: Bevásárlólista) */}
         {activeTab === 'shopping' && (
@@ -206,48 +215,20 @@ export function App() {
           />
         )}
 
-        {/* Mobile Bottom Navigation Bar */}
-        <div className="mobile-bottom-nav">
-          <button
-            className={`nav-item ${activeTab === 'shopping' ? 'active' : ''}`}
-            onClick={() => setActiveTab('shopping')}
-          >
-            <ShoppingCart size={20} />
-            <span>Bevásárlás</span>
-          </button>
-
-          <button
-            className={`nav-item ${activeTab === 'meals' ? 'active' : ''}`}
-            onClick={() => setActiveTab('meals')}
-          >
-            <Utensils size={20} />
-            <span>Heti Étlap</span>
-          </button>
-
-          <button
-            className={`nav-item ${activeTab === 'todos' ? 'active' : ''}`}
-            onClick={() => setActiveTab('todos')}
-          >
-            <CheckSquare size={20} />
-            <span>Teendők</span>
-          </button>
-
-          <button
-            className={`nav-item ${activeTab === 'calendar' ? 'active' : ''}`}
-            onClick={() => setActiveTab('calendar')}
-          >
-            <Calendar size={20} />
-            <span>Naptár</span>
-          </button>
-
-          <button
-            className={`nav-item ${activeTab === 'settings' ? 'active' : ''}`}
-            onClick={() => setActiveTab('settings')}
-          >
-            <Settings size={20} />
-            <span>Profilok</span>
-          </button>
-        </div>
+        {/* Alsó sáv — mobil. Ugyanaz a TABS lista, egy forrásból. */}
+        <nav className="mobile-bottom-nav" aria-label="Fő navigáció">
+          {TABS.map(tab => (
+            <button
+              key={tab.id}
+              className={`nav-item ${activeTab === tab.id ? 'active' : ''}`}
+              onClick={() => setActiveTab(tab.id)}
+              aria-current={activeTab === tab.id ? 'page' : undefined}
+            >
+              <tab.Icon size={19} />
+              <span>{tab.label}</span>
+            </button>
+          ))}
+        </nav>
 
         {/* Supabase Auth Login / Register Modal */}
         {isLoginModalOpen && (

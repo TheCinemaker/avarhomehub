@@ -246,57 +246,33 @@ export const ShoppingTab = ({
   };
 
   return (
-    <div className="glass-panel" style={{ padding: '1rem 1.25rem' }}>
-      {/* Action Header */}
+    <div className="glass-panel panel-pad">
       <div className="action-header">
         <div>
-          <h2 style={{ fontSize: '1.25rem' }}>
-            <ShoppingCart size={22} style={{ color: '#38bdf8' }} />
-            Bevásárlólista
-          </h2>
-          <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-            Sűrű, gyorsan átlátható lista • Kattints a részletekért & fotóért
-          </p>
+          <h2><ShoppingCart size={18} /> Bevásárlólista</h2>
+          <p className="panel-sub">Kattints egy tételre a szerkesztéshez vagy a fotó csatolásához.</p>
         </div>
 
-        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-          <button
-            className="btn-secondary"
-            onClick={() => setIsStoreModeOpen(true)}
-            style={{ background: 'linear-gradient(135deg, #0284c7, #0369a1)', color: '#fff', border: 'none', padding: '0.5rem 0.85rem' }}
-          >
-            <Maximize2 size={16} />
-            Bolti Nézet
+        <div className="action-header-buttons">
+          <button className="btn-secondary" onClick={() => setIsStoreModeOpen(true)} title="Nagy méretű, boltban használható nézet">
+            <Maximize2 size={15} /> Bolti nézet
           </button>
 
-          <button className="btn-primary" onClick={() => setIsModalOpen(true)} style={{ padding: '0.5rem 1rem' }}>
-            <Plus size={16} />
-            Új Tétel + Fotó
+          <button className="btn-primary" onClick={() => setIsModalOpen(true)}>
+            <Plus size={16} /> Új tétel
           </button>
         </div>
       </div>
 
       {/* Store Filter Dropdown */}
-      <div style={{ marginBottom: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--text-muted)', fontSize: '0.85rem', fontWeight: 600 }}>
-          <Filter size={15} style={{ color: '#38bdf8' }} />
-          <span>Boltok szűrő:</span>
-        </div>
+      <div className="filter-row">
+        <Filter size={15} />
         <select
           className="form-select"
           value={selectedStore}
           onChange={e => setSelectedStore(e.target.value)}
-          style={{
-            flex: 1,
-            minWidth: '220px',
-            maxWidth: '340px',
-            padding: '0.45rem 0.85rem',
-            fontWeight: 600,
-            background: 'rgba(15, 23, 42, 0.7)',
-            borderColor: selectedStore !== 'all' ? '#38bdf8' : 'var(--border-glass)',
-            color: selectedStore !== 'all' ? '#38bdf8' : 'var(--text-main)',
-            borderRadius: 'var(--radius-md)'
-          }}
+          aria-label="Szűrés bolt szerint"
+          style={selectedStore !== 'all' ? { borderColor: 'var(--accent-line)' } : undefined}
         >
           <option value="all">
             Összes üzlet ({items.filter(i => activeUserId === 'everyone' || i.assignedUser === activeUserId || i.assignedUser === 'everyone').length} tétel)
@@ -312,11 +288,7 @@ export const ShoppingTab = ({
           })}
         </select>
         {selectedStore !== 'all' && (
-          <button
-            className="btn-secondary"
-            onClick={() => setSelectedStore('all')}
-            style={{ padding: '0.45rem 0.75rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}
-          >
+          <button className="btn-quiet btn-sm" onClick={() => setSelectedStore('all')}>
             <X size={14} /> Szűrő törlése
           </button>
         )}
@@ -325,10 +297,12 @@ export const ShoppingTab = ({
       {/* DENSE COMPACT SHOPPING LIST */}
       {filteredItems.length === 0 ? (
         <div className="empty-state">
-          <ShoppingBag size={36} style={{ color: 'var(--text-dim)' }} />
-          <h3 style={{ fontSize: '1.05rem' }}>A bevásárlólista üres!</h3>
-          <p style={{ fontSize: '0.85rem' }}>
-            {selectedStore !== 'all' ? `Nincs tétel a(z) "${selectedStore}" bolt szűrő alatt.` : 'Írd fel a tételeket (fotóval vagy anélkül) a fenti "Új Tétel" gombbal.'}
+          <ShoppingBag size={28} />
+          <h3>A bevásárlólista üres</h3>
+          <p>
+            {selectedStore !== 'all'
+              ? `Nincs tétel a(z) „${selectedStore}" szűrő alatt.`
+              : 'Vedd fel az első tételt az „Új tétel" gombbal — fotót is csatolhatsz hozzá.'}
           </p>
         </div>
       ) : (
@@ -365,7 +339,7 @@ export const ShoppingTab = ({
                 {item.imageUrl ? (
                   <img src={item.imageUrl} alt={item.title} className="item-thumbnail" />
                 ) : (
-                  <div className="item-thumbnail" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-dim)' }}>
+                  <div className="item-thumbnail">
                     <ShoppingBag size={14} />
                   </div>
                 )}
@@ -373,24 +347,18 @@ export const ShoppingTab = ({
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div className="compact-item-title">
                     {item.title}
-                    {item.quantity && (
-                      <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginLeft: '0.35rem', fontWeight: 400 }}>
-                        ({item.quantity})
-                      </span>
-                    )}
+                    {item.quantity && <span className="item-qty">{item.quantity}</span>}
                   </div>
                 </div>
               </div>
 
               <div className="compact-item-right" onClick={e => e.stopPropagation()}>
-                <span className="badge badge-store" style={{ fontSize: '0.675rem', padding: '0.1rem 0.4rem' }}>
-                  <Store size={10} /> {item.store}
+                <span className="badge badge-store">
+                  <Store size={11} /> {item.store}
                 </span>
 
                 {item.estimatedPrice > 0 && (
-                  <span className="item-price" style={{ fontSize: '0.85rem' }}>
-                    {item.estimatedPrice.toLocaleString('hu-HU')} Ft
-                  </span>
+                  <span className="item-price">{item.estimatedPrice.toLocaleString('hu-HU')} Ft</span>
                 )}
 
                 <select
@@ -437,25 +405,9 @@ export const ShoppingTab = ({
 
       {/* Summary Footer */}
       {filteredItems.length > 0 && (
-        <div
-          style={{
-            marginTop: '0.75rem',
-            padding: '0.6rem 1rem',
-            background: 'rgba(15, 23, 42, 0.6)',
-            borderRadius: 'var(--radius-md)',
-            border: '1px solid var(--border-glass)',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            fontSize: '0.875rem'
-          }}
-        >
-          <span style={{ color: 'var(--text-muted)' }}>
-            Kosárba nem tett tételek (becsült total):
-          </span>
-          <span style={{ fontWeight: 800, fontSize: '1.1rem', color: '#38bdf8' }}>
-            {totalEstimated.toLocaleString('hu-HU')} Ft
-          </span>
+        <div className="summary-bar">
+          <span>Hátralévő tételek becsült értéke</span>
+          <span className="summary-total">{totalEstimated.toLocaleString('hu-HU')} Ft</span>
         </div>
       )}
 

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { CheckSquare, Plus, Trash2, Check, RefreshCw, X, UserPlus, Calendar } from 'lucide-react';
 import { useModalBehavior } from '../hooks/useModalBehavior';
+import { formatShort, formatLong, relativeDayName } from '../utils/date';
 
 const PRIORITY_FILTERS = [
   { key: 'all', label: 'Összes prioritás' },
@@ -36,6 +37,9 @@ export const TodoTab = ({
   const [recurringFrequency, setRecurringFrequency] = useState('napi');
 
   useModalBehavior(isModalOpen, () => setIsModalOpen(false));
+
+  // „Ma" / „Holnap", egyébként olvasható dátum — nyers ISO helyett
+  const dayLabel = relativeDayName(selectedDate) || formatLong(selectedDate);
 
   const confirmDeleteTask = (task) => {
     if (window.confirm(`Biztosan törlöd ezt a feladatot: "${task.title}"?`)) {
@@ -80,32 +84,28 @@ export const TodoTab = ({
   };
 
   return (
-    <div className="glass-panel" style={{ padding: '1.25rem' }}>
+    <div className="glass-panel panel-pad">
       {/* Action Header */}
       <div className="action-header">
         <div>
-          <h2>
-            <CheckSquare size={24} style={{ color: '#818cf8' }} />
-            Napi Teendők & Feladatok — {selectedDate}
-          </h2>
-          <p style={{ fontSize: '0.825rem', color: 'var(--text-muted)' }}>
-            {showAllDates ? 'Minden feladat áttekintése' : `${selectedDate} napra beütemezve`}
+          <h2><CheckSquare size={18} /> Teendők</h2>
+          <p className="panel-sub">
+            {showAllDates ? 'Minden feladat, dátumtól függetlenül' : dayLabel}
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+        <div className="action-header-buttons">
           <button
             className={`btn-secondary ${showAllDates ? 'active' : ''}`}
             onClick={() => setShowAllDates(!showAllDates)}
-            style={{ fontSize: '0.825rem' }}
+            aria-pressed={showAllDates}
           >
-            <Calendar size={16} />
-            {showAllDates ? 'Csak a mai nap' : 'Összes feladat'}
+            <Calendar size={15} />
+            {showAllDates ? 'Adott nap' : 'Összes nap'}
           </button>
 
           <button className="btn-primary" onClick={() => { setTaskDate(selectedDate); setIsModalOpen(true); }}>
-            <Plus size={18} />
-            Új Feladat
+            <Plus size={16} /> Új feladat
           </button>
         </div>
       </div>
@@ -127,9 +127,9 @@ export const TodoTab = ({
       {/* Tasks List */}
       {filteredTasks.length === 0 ? (
         <div className="empty-state">
-          <CheckSquare size={40} style={{ color: 'var(--text-dim)' }} />
-          <h3>Nincs elintézendő feladat erre a napra!</h3>
-          <p>Minden el van végezve, vagy adj hozzá új feladatot az "Új Feladat" gombbal.</p>
+          <CheckSquare size={28} />
+          <h3>Nincs feladat erre a napra</h3>
+          <p>Minden kész — vagy vegyél fel újat az „Új feladat" gombbal.</p>
         </div>
       ) : (
         <div className="items-list">
@@ -182,9 +182,7 @@ export const TodoTab = ({
                         <RefreshCw size={11} /> {task.recurringFrequency || 'Ismétlődő'}
                       </span>
                     )}
-                    {showAllDates && (
-                      <span style={{ color: 'var(--text-dim)' }}>Dátum: {task.date}</span>
-                    )}
+                    {showAllDates && <span>{formatShort(task.date)}</span>}
                   </div>
                 </div>
               </div>
