@@ -51,24 +51,23 @@ export const AuthScreen = ({ onLoginSuccess }) => {
         if (error) throw error;
 
         if (data.user) {
-          // Initialize default clean family profiles in Supabase for this new account
-          const userId = data.user.id;
-          const defaultProfiles = [
-            { id: 'apa', user_id: userId, name: 'Apa', avatar: 'AP', color: '#3b82f6', is_custom: false },
-            { id: 'anya', user_id: userId, name: 'Anya', avatar: 'AN', color: '#ec4899', is_custom: false },
-            { id: 'gyerek', user_id: userId, name: 'Ármin', avatar: 'ÁR', color: '#10b981', is_custom: false },
-            { id: 'everyone', user_id: userId, name: 'Mindannyian', avatar: 'ALL', color: '#8b5cf6', is_custom: false }
-          ];
+          // Az alapprofilokat NEM itt hozzuk létre!
+          // Ha a projektben kötelező az e-mail-megerősítés, a signUp
+          // munkamenet nélkül tér vissza, így az itteni beszúrás anonim
+          // kérésként futna, amit az RLS (`TO authenticated`) némán eldob.
+          // A profilokat ezért az első bejelentkezett betöltés hozza létre
+          // (lásd useHomeStore -> seedDefaultProfiles).
 
-          // upsert, hogy egy megismételt regisztráció/újrapróbálkozás se
-          // dőljön el kulcsütközésen
-          await supabase.from('family_profiles').upsert(defaultProfiles, { onConflict: 'id,user_id' });
-
-          setMessage({
-            text: 'Sikeres regisztráció! Most már bejelentkezhetsz.',
-            type: 'success'
-          });
-          setMode('login');
+          if (data.session) {
+            setMessage({ text: 'Sikeres regisztráció! Beléptetünk...', type: 'success' });
+            setTimeout(() => onLoginSuccess(data.session.user), 500);
+          } else {
+            setMessage({
+              text: `Elküldtünk egy megerősítő linket a(z) ${email.trim()} címre. Kattints rá, utána tudsz belépni.`,
+              type: 'success'
+            });
+            setMode('login');
+          }
         }
       }
     } catch (err) {

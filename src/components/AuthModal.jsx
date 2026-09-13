@@ -54,13 +54,15 @@ export const AuthModal = ({ onClose }) => {
           setTimeout(() => onClose(), 1200);
         }
       } else {
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email: email.trim(),
           password
         });
         if (error) throw error;
         setMessage({
-          text: 'Sikeres regisztráció! Ellenőrizd az e-mailedet az igazoláshoz, vagy lépj be azonnal.',
+          text: data.session
+            ? 'Sikeres regisztráció! Most már bejelentkezhetsz.'
+            : `Elküldtünk egy megerősítő linket a(z) ${email.trim()} címre. Kattints rá, utána tudsz belépni.`,
           type: 'success'
         });
         setMode('login');

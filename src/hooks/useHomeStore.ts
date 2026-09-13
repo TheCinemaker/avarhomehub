@@ -144,9 +144,52 @@ export function useHomeStore() {
     ];
   });
 
-  // Supabase Initial Sync & Realtime Channel Subscription
+  // Bejelentkezett felhasználó azonosítója.
+  // Ez a szinkron-effect függősége: enélkül az effect `[]`-tal futott, vagyis
+  // EGYSZER, még a bejelentkező képernyő alatt — belépés után pedig soha.
+  // Emiatt a friss belépés semmit nem töltött le a felhőből (csak a következő
+  // oldalfrissítés), és az alapprofilok sem jöttek létre.
+  const [authUserId, setAuthUserId] = useState<string | null>(null);
+
   useEffect(() => {
     if (!isSupabaseConfigured || !supabase) return;
+
+    supabase.auth.getSession().then(({ data }) => {
+      setAuthUserId(data.session?.user?.id ?? null);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setAuthUserId(session?.user?.id ?? null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // Supabase Initial Sync & Realtime Channel Subscription
+  useEffect(() => {
+    if (!isSupabaseConfigured || !supabase || !authUserId) return;
+
+    // Új fióknál az alapprofilokat itt hozzuk létre, nem a regisztrációkor.
+    // A regisztráció ugyanis munkamenet nélkül tér vissza, ha a projektben
+    // kötelező az e-mail-megerősítés — az akkori beszúrást az RLS
+    // (`TO authenticated`) némán eldobta, így a profilok sosem jöttek létre.
+    async function seedDefaultProfiles(authUserId: string) {
+      try {
+        await supabase!.from('family_profiles').upsert(
+          INITIAL_USERS.map(u => ({
+            id: u.id,
+            user_id: authUserId,
+            name: u.name,
+            avatar: u.avatar,
+            color: u.color,
+            is_custom: false
+          })),
+          { onConflict: 'id,user_id' }
+        );
+      } catch (err) {
+        console.warn('Alapprofilok létrehozása sikertelen:', err);
+      }
+    }
 
     async function loadFromSupabase() {
       try {
@@ -215,6 +258,9 @@ export function useHomeStore() {
             });
             return sortUsers(Array.from(byId.values()));
           });
+        } else {
+          // Üres a tábla -> ez egy frissen visszaigazolt fiók első betöltése.
+          await seedDefaultProfiles(authUserId);
         }
 
         const { data: remoteMeals } = await supabase!.from('family_meals').select('*');
@@ -264,7 +310,7 @@ export function useHomeStore() {
       if (reloadTimer) clearTimeout(reloadTimer);
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [authUserId]);
 
   // LocalStorage Persistence Effects
   useEffect(() => {
