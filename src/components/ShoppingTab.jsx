@@ -1,6 +1,11 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ShoppingCart, Plus, Trash2, Check, Store, X, Maximize2, UserPlus, ShoppingBag, Camera, Image, Filter, Pencil, Save } from 'lucide-react';
+// FIGYELEM: a lucide `Image` ikonját kötelező átnevezni! Sima `Image` néven
+// elfedné a böngésző beépített Image konstruktorát, amit a képtömörítés
+// használ — emiatt a fotófeltöltés némán, nyom nélkül elhalt.
+import { ShoppingCart, Plus, Trash2, Check, Store, X, Maximize2, ShoppingBag, Camera, Image as ImageIcon, Filter, Pencil, Save } from 'lucide-react';
+import { useModalBehavior } from '../hooks/useModalBehavior';
+import { todayIso } from '../utils/date';
 
 const DEFAULT_STORES = ['Lidl', 'Aldi', 'SPAR', 'Tesco', 'Penny', 'Auchan', 'DM', 'Rossmann', 'Egyéb'];
 const CATEGORIES = ['Élelmiszer', 'Háztartás', 'Gyógyszertár', 'Barkács', 'Személyes', 'Egyéb'];
@@ -20,7 +25,6 @@ export const ShoppingTab = ({
   const [selectedStore, setSelectedStore] = useState('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isStoreModeOpen, setIsStoreModeOpen] = useState(false);
-  const [detailItem, setDetailItem] = useState(null);
 
   // Edit Item Modal State
   const [editingItem, setEditingItem] = useState(null);
@@ -49,6 +53,19 @@ export const ShoppingTab = ({
 
   const availableStores = stores && stores.length > 0 ? stores : DEFAULT_STORES;
 
+  // ESC-re zárás + háttér görgetés-zár minden modálhoz
+  useModalBehavior(isModalOpen, () => setIsModalOpen(false));
+  useModalBehavior(isStoreModeOpen, () => setIsStoreModeOpen(false));
+  useModalBehavior(Boolean(editingItem), () => setEditingItem(null));
+
+  const confirmDelete = (item) => {
+    if (window.confirm(`Biztosan törlöd a listáról: "${item.title}"?`)) {
+      onDeleteItem(item.id);
+      return true;
+    }
+    return false;
+  };
+
   // Living Shopping Backlog List
   const filteredItems = items.filter(item => {
     const matchesUser = activeUserId === 'everyone' || item.assignedUser === activeUserId || item.assignedUser === 'everyone';
@@ -66,9 +83,16 @@ export const ShoppingTab = ({
       const reader = new FileReader();
       reader.onerror = (err) => reject(err);
       reader.onload = (e) => {
-        const img = new Image();
+        // A teljes törzs try/catch-ben: enélkül egy itt dobott hiba nem
+        // utasítja el a Promise-t, hanem örökre függőben hagyja (pontosan ez
+        // történt a lucide `Image` ütközése miatt).
+        try {
+        // `window.Image` — a modul tetején importált lucide-ikon miatt a
+        // csupasz `Image` itt NEM a böngésző konstruktora lenne.
+        const img = new window.Image();
         img.onerror = (err) => reject(err);
         img.onload = () => {
+          try {
           let width = img.width;
           let height = img.height;
 
@@ -95,8 +119,14 @@ export const ShoppingTab = ({
           ctx.drawImage(img, 0, 0, width, height);
           const dataUrl = canvas.toDataURL('image/jpeg', quality);
           resolve(dataUrl);
+          } catch (err) {
+            reject(err);
+          }
         };
         img.src = e.target?.result;
+        } catch (err) {
+          reject(err);
+        }
       };
       reader.readAsDataURL(file);
     });
@@ -203,7 +233,7 @@ export const ShoppingTab = ({
       estimatedPrice: Number(estimatedPrice) || 0,
       store,
       category,
-      date: new Date().toISOString().split('T')[0],
+      date: todayIso(),
       assignedUser,
       imageUrl: imageUrl.trim() || undefined
     });
@@ -261,7 +291,6 @@ export const ShoppingTab = ({
             minWidth: '220px',
             maxWidth: '340px',
             padding: '0.45rem 0.85rem',
-            fontSize: '0.9rem',
             fontWeight: 600,
             background: 'rgba(15, 23, 42, 0.7)',
             borderColor: selectedStore !== 'all' ? '#38bdf8' : 'var(--border-glass)',
@@ -318,6 +347,17 @@ export const ShoppingTab = ({
                     e.stopPropagation();
                     onToggleItem(item.id);
                   }}
+                  role="checkbox"
+                  aria-checked={item.isCompleted}
+                  aria-label={`${item.title} kosárba téve`}
+                  tabIndex={0}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      onToggleItem(item.id);
+                    }
+                  }}
                 >
                   {item.isCompleted && <Check size={14} />}
                 </div>
@@ -354,19 +394,11 @@ export const ShoppingTab = ({
                 )}
 
                 <select
+                  className="assignee-select"
                   value={item.assignedUser}
                   onChange={e => onReassignItem(item.id, e.target.value)}
-                  style={{
-                    background: 'rgba(15, 23, 42, 0.6)',
-                    color: users.find(u => u.id === item.assignedUser)?.color || 'var(--text-main)',
-                    border: '1px solid var(--border-glass)',
-                    borderRadius: 'var(--radius-full)',
-                    fontSize: '0.7rem',
-                    fontWeight: 700,
-                    padding: '0.05rem 0.35rem',
-                    outline: 'none',
-                    cursor: 'pointer'
-                  }}
+                  style={{ color: users.find(u => u.id === item.assignedUser)?.color || 'var(--text-main)' }}
+                  aria-label={`${item.title} felelőse`}
                 >
                   {users.map(u => (
                     <option key={u.id} value={u.id}>
@@ -376,34 +408,22 @@ export const ShoppingTab = ({
                 </select>
 
                 <button
-                  className="btn-icon"
-                  style={{ width: '28px', height: '28px', color: '#38bdf8' }}
+                  className="btn-icon btn-icon-sm"
+                  style={{ color: '#38bdf8' }}
                   onClick={(e) => {
                     e.stopPropagation();
                     startEditing(item);
                   }}
                   title="Tétel szerkesztése (mennyiség, név, ár)"
                 >
-                  <Pencil size={14} />
+                  <Pencil size={15} />
                 </button>
 
                 <button
-                  className="btn-icon"
-                  style={{
-                    width: '34px',
-                    height: '34px',
-                    color: '#ef4444',
-                    background: 'rgba(239, 68, 68, 0.15)',
-                    border: '1px solid rgba(239, 68, 68, 0.35)',
-                    borderRadius: '8px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    cursor: 'pointer'
-                  }}
+                  className="btn-icon btn-icon-sm btn-icon-danger"
                   onClick={(e) => {
                     e.stopPropagation();
-                    onDeleteItem(item.id);
+                    confirmDelete(item);
                   }}
                   title="Tétel törlése"
                 >
@@ -439,100 +459,11 @@ export const ShoppingTab = ({
         </div>
       )}
 
-      {/* ITEM DETAIL & PHOTO MODAL (Portal to document.body for true overlay) */}
-      {detailItem && createPortal(
-        <div className="modal-overlay" style={{ zIndex: 9999 }} onClick={() => setDetailItem(null)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3 style={{ fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <ShoppingBag size={20} style={{ color: '#38bdf8' }} /> {detailItem.title}
-              </h3>
-              <button className="btn-icon" onClick={() => setDetailItem(null)}>
-                <X size={20} />
-              </button>
-            </div>
-
-            {detailItem.imageUrl ? (
-              <div style={{ textAlign: 'center', background: '#090d16', borderRadius: 'var(--radius-md)', overflow: 'hidden', border: '1px solid var(--border-glass)' }}>
-                <img
-                  src={detailItem.imageUrl}
-                  alt={detailItem.title}
-                  style={{ maxWidth: '100%', maxHeight: '280px', objectFit: 'contain' }}
-                />
-              </div>
-            ) : (
-              <div style={{ padding: '1.5rem', textAlign: 'center', background: 'rgba(15, 23, 42, 0.4)', borderRadius: 'var(--radius-md)', color: 'var(--text-muted)' }}>
-                <Image size={32} style={{ opacity: 0.4, marginBottom: '0.3rem' }} />
-                <p style={{ fontSize: '0.85rem' }}>Ehhez a tételhez nincs csatolt fotó.</p>
-              </div>
-            )}
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', fontSize: '0.9rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--text-muted)' }}>Bolt:</span>
-                <span className="badge badge-store"><Store size={12} /> {detailItem.store}</span>
-              </div>
-
-              {detailItem.quantity && (
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: 'var(--text-muted)' }}>Mennyiség:</span>
-                  <span style={{ fontWeight: 600 }}>{detailItem.quantity}</span>
-                </div>
-              )}
-
-              {detailItem.estimatedPrice > 0 && (
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: 'var(--text-muted)' }}>Becsült ár:</span>
-                  <span style={{ fontWeight: 800, color: '#38bdf8' }}>{detailItem.estimatedPrice.toLocaleString('hu-HU')} Ft</span>
-                </div>
-              )}
-
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--text-muted)' }}>Kategória:</span>
-                <span className="badge badge-category">{detailItem.category}</span>
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--text-muted)' }}>Felelős:</span>
-                <span style={{ fontWeight: 600, color: users.find(u => u.id === detailItem.assignedUser)?.color }}>
-                  {users.find(u => u.id === detailItem.assignedUser)?.name}
-                </span>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', marginTop: '0.5rem' }}>
-              <button
-                className="btn-secondary"
-                style={{ color: '#ef4444' }}
-                onClick={() => {
-                  onDeleteItem(detailItem.id);
-                  setDetailItem(null);
-                }}
-              >
-                <Trash2 size={16} /> Törlés
-              </button>
-
-              <button
-                className="btn-primary"
-                onClick={() => {
-                  onToggleItem(detailItem.id);
-                  setDetailItem(null);
-                }}
-              >
-                {detailItem.isCompleted ? 'Visszatétel kosárból' : 'Kosárba téve (Pipa)'}
-              </button>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
-
       {/* BOLTI BEVÁSÁRLÓ ÜZEMMÓD (Portal to document.body) */}
       {isStoreModeOpen && createPortal(
-        <div className="modal-overlay" style={{ background: '#090d16', zIndex: 9999 }} onClick={() => setIsStoreModeOpen(false)}>
+        <div className="modal-overlay store-mode-overlay" style={{ zIndex: 9999 }} onClick={() => setIsStoreModeOpen(false)}>
           <div
-            className="modal-content"
-            style={{ maxWidth: '700px', width: '100%', height: '100vh', maxHeight: '100vh', borderRadius: 0, padding: '1.25rem' }}
+            className="modal-content store-mode-content"
             onClick={e => e.stopPropagation()}
           >
             <div className="modal-header" style={{ borderBottom: '1px solid var(--border-glass)', paddingBottom: '1rem' }}>
@@ -633,21 +564,30 @@ export const ShoppingTab = ({
 
       {/* TELJES KIJELZŐS ÚJ TÉTEL MODÁL (Portal to document.body for true full screen overlay!) */}
       {isModalOpen && createPortal(
-        <div className="full-screen-modal-overlay" style={{ zIndex: 9999 }}>
-          <div className="full-screen-modal-wrapper">
+        <div
+          className="modal-overlay full-screen-modal-overlay"
+          style={{ zIndex: 9999 }}
+          onClick={() => setIsModalOpen(false)}
+        >
+          <div className="modal-content full-screen-modal-content" onClick={e => e.stopPropagation()}>
             <div className="modal-header" style={{ borderBottom: '1px solid var(--border-glass)', paddingBottom: '1rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'linear-gradient(135deg, #0284c7, #0369a1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minWidth: 0 }}>
+                <div style={{ width: '40px', height: '40px', flexShrink: 0, borderRadius: '12px', background: 'linear-gradient(135deg, #0284c7, #0369a1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <ShoppingCart size={22} style={{ color: '#fff' }} />
                 </div>
-                <div>
-                  <h2 style={{ fontSize: '1.4rem', fontWeight: 800 }}>Új Bevásárlási Tétel Hozzáadása</h2>
+                <div style={{ minWidth: 0 }}>
+                  <h2 className="modal-title">Új Bevásárlási Tétel</h2>
                   <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Tölts fel csomagolás fotót is, hogy a család tudja mit kell hozni!</p>
                 </div>
               </div>
 
-              <button className="btn-secondary" onClick={() => setIsModalOpen(false)} style={{ borderRadius: 'var(--radius-full)', padding: '0.5rem 1rem' }}>
-                <X size={22} /> Bezárás
+              <button
+                className="btn-secondary"
+                onClick={() => setIsModalOpen(false)}
+                style={{ borderRadius: 'var(--radius-full)', padding: '0.5rem 1rem', flexShrink: 0 }}
+                title="Bezárás"
+              >
+                <X size={22} /> <span className="hide-on-tiny">Bezárás</span>
               </button>
             </div>
 
@@ -689,7 +629,7 @@ export const ShoppingTab = ({
                     onClick={() => document.getElementById('fullscreen-photo-file-input')?.click()}
                     style={{ padding: '0.75rem 1.25rem', fontSize: '0.95rem', background: 'rgba(56, 189, 248, 0.15)', borderColor: 'rgba(56, 189, 248, 0.4)', color: '#38bdf8' }}
                   >
-                    <Image size={18} /> Fotó feltöltése / Készítése mobillal
+                    <ImageIcon size={18} /> Fotó feltöltése / Készítése mobillal
                   </button>
 
                   {imageUrl && (
@@ -995,7 +935,7 @@ export const ShoppingTab = ({
                     onClick={() => document.getElementById('edit-photo-file-input')?.click()}
                     style={{ padding: '0.75rem 1.25rem', fontSize: '0.95rem', background: 'rgba(56, 189, 248, 0.15)', borderColor: 'rgba(56, 189, 248, 0.4)', color: '#38bdf8' }}
                   >
-                    <Image size={18} /> Fotó feltöltése / csere
+                    <ImageIcon size={18} /> Fotó feltöltése / csere
                   </button>
 
                   {editImageUrl && (
@@ -1023,8 +963,9 @@ export const ShoppingTab = ({
                   className="btn-secondary"
                   style={{ color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.4)' }}
                   onClick={() => {
-                    onDeleteItem(editingItem.id);
-                    setEditingItem(null);
+                    if (confirmDelete(editingItem)) {
+                      setEditingItem(null);
+                    }
                   }}
                 >
                   <Trash2 size={16} /> Törlés

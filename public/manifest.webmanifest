@@ -1,0 +1,20 @@
+{
+  "name": "HomeHub — Családi Teendők & Rendszerező",
+  "short_name": "HomeHub",
+  "description": "Családi bevásárlólista, heti étlap és teendők egy helyen.",
+  "lang": "hu",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#090d16",
+  "theme_color": "#090d16",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

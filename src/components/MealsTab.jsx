@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Utensils, Search, Plus, ShoppingBag, Trash2, Pencil, Calendar, Check, X, Clock, UserCheck, Sparkles, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useModalBehavior } from '../hooks/useModalBehavior';
+import { parseIsoDate, todayIso, startOfWeek, addDays } from '../utils/date';
 
 const DAYS_OF_WEEK = [
   { key: 1, name: 'Hétfő' },
@@ -16,7 +18,7 @@ const getRelativeTimeString = (dateStr) => {
   if (!dateStr) return '';
   const now = new Date();
   now.setHours(0, 0, 0, 0);
-  const date = new Date(dateStr);
+  const date = parseIsoDate(dateStr);
   date.setHours(0, 0, 0, 0);
   const diffTime = now.getTime() - date.getTime();
   const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
@@ -62,23 +64,21 @@ export const MealsTab = ({
   // Week navigation state
   const [weekOffset, setWeekOffset] = useState(0);
 
-  // Helper to get dates for current selected week
+  // A kiválasztott hét 7 napja (hétfőtől vasárnapig), helyi időben számolva.
   const getWeekDates = (offset = 0) => {
-    const current = new Date(selectedDate);
-    const day = current.getDay();
-    const diffToMonday = current.getDate() - day + (day === 0 ? -6 : 1) + (offset * 7);
-    
-    const monday = new Date(current.setDate(diffToMonday));
-    const dates = [];
-    for (let i = 0; i < 7; i++) {
-      const d = new Date(monday);
-      d.setDate(monday.getDate() + i);
-      dates.push(d.toISOString().split('T')[0]);
-    }
-    return dates;
+    const monday = startOfWeek(selectedDate, offset);
+    return Array.from({ length: 7 }, (_, i) => addDays(monday, i));
   };
 
   const weekDates = getWeekDates(weekOffset);
+
+  useModalBehavior(isModalOpen, () => setIsModalOpen(false));
+
+  const confirmDeleteMeal = (meal) => {
+    if (window.confirm(`Biztosan törlöd az étlapról: "${meal.title}"?`)) {
+      onDeleteMeal(meal.id);
+    }
+  };
 
   const startNewMeal = (defaultDate = selectedDate) => {
     setEditingMeal(null);
@@ -184,7 +184,7 @@ export const MealsTab = ({
             placeholder="Keresés régebbi ebédek & receptek között (pl. rakott krumpli, gulyás, spagetti)..."
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            style={{ paddingLeft: '2.75rem', fontSize: '0.95rem', background: 'rgba(15, 23, 42, 0.7)' }}
+            style={{ paddingLeft: '2.75rem', background: 'rgba(15, 23, 42, 0.7)' }}
           />
           {searchQuery && (
             <button
@@ -259,10 +259,10 @@ export const MealsTab = ({
                       </div>
 
                       <div style={{ display: 'flex', gap: '0.35rem' }}>
-                        <button className="btn-icon" onClick={() => startEditMeal(meal)} title="Szerkesztés">
+                        <button className="btn-icon btn-icon-sm" style={{ color: '#38bdf8' }} onClick={() => startEditMeal(meal)} title="Szerkesztés">
                           <Pencil size={15} />
                         </button>
-                        <button className="btn-icon" onClick={() => onDeleteMeal(meal.id)} title="Törlés">
+                        <button className="btn-icon btn-icon-sm btn-icon-danger" onClick={() => confirmDeleteMeal(meal)} title="Törlés">
                           <Trash2 size={15} />
                         </button>
                       </div>
@@ -292,15 +292,21 @@ export const MealsTab = ({
         /* WEEKLY MENU GRID VIEW */
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <button className="btn-secondary" onClick={() => setWeekOffset(prev => prev - 1)} style={{ padding: '0.4rem 0.75rem' }}>
-                <ChevronLeft size={16} /> Előző hét
+            {/* flexWrap nélkül ez a három gomb együtt szélesebb volt, mint egy
+                360px-es telefon panelje, és vízszintes görgetést okozott */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+              <button className="btn-secondary" onClick={() => setWeekOffset(prev => prev - 1)} style={{ padding: '0.4rem 0.7rem' }} title="Előző hét">
+                <ChevronLeft size={16} /> <span className="hide-on-tiny">Előző hét</span>
               </button>
-              <button className="btn-secondary" onClick={() => setWeekOffset(0)} style={{ padding: '0.4rem 0.75rem', fontWeight: weekOffset === 0 ? 800 : 500 }}>
+              <button
+                className={`btn-secondary ${weekOffset === 0 ? 'active' : ''}`}
+                onClick={() => setWeekOffset(0)}
+                style={{ padding: '0.4rem 0.7rem' }}
+              >
                 Mai Hét
               </button>
-              <button className="btn-secondary" onClick={() => setWeekOffset(prev => prev + 1)} style={{ padding: '0.4rem 0.75rem' }}>
-                Következő hét <ChevronRight size={16} />
+              <button className="btn-secondary" onClick={() => setWeekOffset(prev => prev + 1)} style={{ padding: '0.4rem 0.7rem' }} title="Következő hét">
+                <span className="hide-on-tiny">Következő hét</span> <ChevronRight size={16} />
               </button>
             </div>
 
@@ -311,10 +317,10 @@ export const MealsTab = ({
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             {weekDates.map(dateStr => {
-              const d = new Date(dateStr);
+              const d = parseIsoDate(dateStr);
               const dayIndex = d.getDay();
               const dayObj = DAYS_OF_WEEK.find(dw => dw.key === dayIndex) || { name: '' };
-              const isToday = dateStr === new Date().toISOString().split('T')[0];
+              const isToday = dateStr === todayIso();
 
               const dayMeals = meals.filter(m => m.date === dateStr);
 
@@ -401,10 +407,10 @@ export const MealsTab = ({
                               </div>
 
                               <div style={{ display: 'flex', gap: '0.25rem' }}>
-                                <button className="btn-icon" onClick={() => startEditMeal(meal)} title="Szerkesztés" style={{ width: '26px', height: '26px' }}>
+                                <button className="btn-icon btn-icon-sm" style={{ color: '#38bdf8' }} onClick={() => startEditMeal(meal)} title="Szerkesztés">
                                   <Pencil size={13} />
                                 </button>
-                                <button className="btn-icon" onClick={() => onDeleteMeal(meal.id)} title="Törlés" style={{ width: '26px', height: '26px' }}>
+                                <button className="btn-icon btn-icon-sm btn-icon-danger" onClick={() => confirmDeleteMeal(meal)} title="Törlés">
                                   <Trash2 size={13} />
                                 </button>
                               </div>
@@ -516,17 +522,40 @@ export const MealsTab = ({
               </div>
 
               {!editingMeal && ingredients.trim() && (
-                <div className="form-group" style={{ flexDirection: 'row', alignItems: 'center', gap: '0.75rem', padding: '0.65rem', background: 'rgba(245, 158, 11, 0.1)', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(245, 158, 11, 0.3)' }}>
-                  <input
-                    type="checkbox"
-                    id="auto-add-shop"
-                    checked={autoAddToShopping}
-                    onChange={e => setAutoAddToShopping(e.target.checked)}
-                    style={{ width: '18px', height: '18px', cursor: 'pointer' }}
-                  />
-                  <label htmlFor="auto-add-shop" style={{ cursor: 'pointer', fontSize: '0.875rem', fontWeight: 600, color: '#f59e0b', margin: 0 }}>
-                    Hozzávalók azonnali másolása a bevásárlólistára mentéskor
-                  </label>
+                <div className="form-group" style={{ gap: '0.65rem', padding: '0.75rem', background: 'rgba(245, 158, 11, 0.1)', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(245, 158, 11, 0.3)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <input
+                      type="checkbox"
+                      id="auto-add-shop"
+                      checked={autoAddToShopping}
+                      onChange={e => setAutoAddToShopping(e.target.checked)}
+                      style={{ width: '20px', height: '20px', cursor: 'pointer', flexShrink: 0, accentColor: '#f59e0b' }}
+                    />
+                    <label htmlFor="auto-add-shop" style={{ cursor: 'pointer', fontSize: '0.875rem', fontWeight: 600, color: '#f59e0b', margin: 0 }}>
+                      Hozzávalók azonnali másolása a bevásárlólistára mentéskor
+                    </label>
+                  </div>
+
+                  {/* A célbolt eddig fixen „Lidl" volt, pedig a `stores` lista
+                      már be volt kötve a komponensbe — most választható. */}
+                  {autoAddToShopping && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                      <label htmlFor="ingredients-store" style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: 0 }}>
+                        Melyik boltba kerüljenek?
+                      </label>
+                      <select
+                        id="ingredients-store"
+                        className="form-select"
+                        value={selectedStoreForShopping}
+                        onChange={e => setSelectedStoreForShopping(e.target.value)}
+                        style={{ width: 'auto', flex: '1 1 140px', minHeight: '40px', padding: '0.4rem 0.7rem' }}
+                      >
+                        {(stores && stores.length > 0 ? stores : ['Lidl']).map(s => (
+                          <option key={s} value={s}>{s}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
                 </div>
               )}
 

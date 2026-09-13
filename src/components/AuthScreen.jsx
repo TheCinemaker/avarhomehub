@@ -1,12 +1,11 @@
 import React, { useState } from 'react';
 import { Home, LogIn, UserPlus, KeyRound, Mail, Lock, ShieldCheck } from 'lucide-react';
-import { supabase, isSupabaseConfigured } from '../supabaseClient';
+import { supabase, isSupabaseConfigured, setRememberDevice } from '../supabaseClient';
 
 export const AuthScreen = ({ onLoginSuccess }) => {
   const [mode, setMode] = useState('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [familyName, setFamilyName] = useState('');
   const [rememberMe, setRememberMe] = useState(true);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState(null);
@@ -26,6 +25,9 @@ export const AuthScreen = ({ onLoginSuccess }) => {
     setLoading(true);
 
     try {
+      // Még a bejelentkezés előtt el kell dönteni, hova kerüljön a munkamenet
+      setRememberDevice(rememberMe);
+
       if (mode === 'login') {
         const { data, error } = await supabase.auth.signInWithPassword({
           email: email.trim(),
@@ -58,7 +60,9 @@ export const AuthScreen = ({ onLoginSuccess }) => {
             { id: 'everyone', user_id: userId, name: 'Mindannyian', avatar: 'ALL', color: '#8b5cf6', is_custom: false }
           ];
 
-          await supabase.from('family_profiles').insert(defaultProfiles);
+          // upsert, hogy egy megismételt regisztráció/újrapróbálkozás se
+          // dőljön el kulcsütközésen
+          await supabase.from('family_profiles').upsert(defaultProfiles, { onConflict: 'id,user_id' });
 
           setMessage({
             text: 'Sikeres regisztráció! Most már bejelentkezhetsz.',
@@ -77,13 +81,18 @@ export const AuthScreen = ({ onLoginSuccess }) => {
   return (
     <div
       style={{
-        minHeight: '100vh',
-        width: '100vw',
+        minHeight: '100dvh',
+        // `100vw` a függőleges görgetősáv szélességét is beleszámítja, ezért
+        // asztalon vízszintes görgetést okozott
+        width: '100%',
         background: 'radial-gradient(circle at top right, #1e1b4b, #0f172a, #090d16)',
         display: 'flex',
         alignItems: 'center',
-        justify: 'center',
+        // `justify` nem létező React style prop volt — a kártya emiatt nem
+        // középen, hanem balra tapadva jelent meg
+        justifyContent: 'center',
         padding: '1.25rem',
+        paddingBottom: 'calc(1.25rem + env(safe-area-inset-bottom, 0px))',
         boxSizing: 'border-box'
       }}
     >
@@ -108,7 +117,7 @@ export const AuthScreen = ({ onLoginSuccess }) => {
               background: 'linear-gradient(135deg, #6366f1, #38bdf8)',
               display: 'flex',
               alignItems: 'center',
-              justify: 'center',
+              justifyContent: 'center',
               margin: '0 auto 0.75rem auto',
               boxShadow: '0 8px 24px rgba(99, 102, 241, 0.4)'
             }}
@@ -226,7 +235,9 @@ export const AuthScreen = ({ onLoginSuccess }) => {
               style={{ width: '17px', height: '17px', accentColor: '#6366f1', cursor: 'pointer' }}
             />
             <label htmlFor="remember-device" style={{ margin: 0, cursor: 'pointer' }}>
-              Maradjak bejelentkezve ezen a telefonon
+              {rememberMe
+                ? 'Maradjak bejelentkezve ezen a telefonon'
+                : 'Kilépés a böngésző bezárásakor'}
             </label>
           </div>
 

@@ -3,9 +3,20 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2220%22 fill=%22%236366f1%22/><path d=%22M30 65 L50 35 L70 65 Z%22 fill=%22white%22/></svg>" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- viewport-fit=cover: enélkül az env(safe-area-inset-*) értékek 0-k
+         maradnak, és az alsó navigáció az iPhone home indicator alá csúszik -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="description" content="HomeHub - Otthoni to-do, napokra bontott bevásárlólista és naptáras befizetnivaló kezelő alkalmazás 3 profilos családi nézettel." />
     <title>HomeHub — Családi Teendők & Rendszerező</title>
+
+    <!-- Kezdőlapra kitett (PWA) használat -->
+    <meta name="theme-color" content="#090d16" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="HomeHub" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

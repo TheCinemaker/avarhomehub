@@ -1,27 +1,29 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from 'lucide-react';
+import { parseIsoDate, formatIsoDate, todayIso, addDays } from '../utils/date';
 
 export const DayNavigator = ({
   selectedDate,
   onSelectDate,
-  onOpenCalendarModal
+  onOpenCalendar
 }) => {
+  // Helyi idővel számolunk — a korábbi new Date(iso) + toISOString() páros
+  // UTC-n keresztül ment, ami negatív eltolású időzónákban egy napot csúszott.
   const getDaysOfWeek = (currentDateStr) => {
-    const current = new Date(currentDateStr);
-    const todayStr = new Date().toISOString().split('T')[0];
-    
-    // Get past 3 days and next 3 days around selectedDate
+    const current = parseIsoDate(currentDateStr);
+    const todayStr = todayIso();
+
+    // 3 nap visszafelé, 3 nap előre a kiválasztott nap körül
     const days = [];
     for (let i = -3; i <= 3; i++) {
       const d = new Date(current);
       d.setDate(d.getDate() + i);
-      const iso = d.toISOString().split('T')[0];
+      const iso = formatIsoDate(d);
       const dayName = d.toLocaleDateString('hu-HU', { weekday: 'short' });
-      const dayNum = d.getDate();
       days.push({
         iso,
         dayName: dayName.toUpperCase(),
-        dayNum,
+        dayNum: d.getDate(),
         isToday: iso === todayStr
       });
     }
@@ -30,17 +32,33 @@ export const DayNavigator = ({
 
   const days = getDaysOfWeek(selectedDate);
 
-  const handlePrevDay = () => {
-    const d = new Date(selectedDate);
-    d.setDate(d.getDate() - 1);
-    onSelectDate(d.toISOString().split('T')[0]);
-  };
+  const handlePrevDay = () => onSelectDate(addDays(selectedDate, -1));
+  const handleNextDay = () => onSelectDate(addDays(selectedDate, 1));
 
-  const handleNextDay = () => {
-    const d = new Date(selectedDate);
-    d.setDate(d.getDate() + 1);
-    onSelectDate(d.toISOString().split('T')[0]);
-  };
+  // Telefonon a 7 napból csak 3-4 fér ki, és a csík a legrégebbi napnál állt.
+  // A kiválasztott napot gördítsük középre.
+  const scrollRef = useRef(null);
+  const activeChipRef = useRef(null);
+  const didInitialScroll = useRef(false);
+
+  useEffect(() => {
+    const container = scrollRef.current;
+    const chip = activeChipRef.current;
+    if (!container || !chip) return;
+
+    // getBoundingClientRect-tel számolunk: az `offsetLeft` az offsetParent-hez
+    // képest mér, ami itt nem a görgetődoboz, így elcsúszott a középre állítás.
+    const cRect = container.getBoundingClientRect();
+    const chipRect = chip.getBoundingClientRect();
+    const delta = (chipRect.left - cRect.left) - (cRect.width - chipRect.width) / 2;
+
+    container.scrollBy({
+      left: delta,
+      // Betöltéskor ugorjon oda azonnal; a későbbi napváltásnál már gördüljön.
+      behavior: didInitialScroll.current ? 'smooth' : 'auto'
+    });
+    didInitialScroll.current = true;
+  }, [selectedDate]);
 
   return (
     <div className="day-navigator">
@@ -48,16 +66,19 @@ export const DayNavigator = ({
         <ChevronLeft size={20} />
       </button>
 
-      <div className="days-scroll-container">
+      <div className="days-scroll-container" ref={scrollRef}>
         {days.map(day => (
-          <div
+          <button
+            type="button"
             key={day.iso}
+            ref={day.iso === selectedDate ? activeChipRef : null}
             className={`day-chip ${day.iso === selectedDate ? 'active' : ''} ${day.isToday ? 'today-badge' : ''}`}
             onClick={() => onSelectDate(day.iso)}
+            aria-pressed={day.iso === selectedDate}
           >
             <span className="day-name">{day.dayName}</span>
             <span className="day-number">{day.dayNum}</span>
-          </div>
+          </button>
         ))}
       </div>
 
@@ -66,9 +87,15 @@ export const DayNavigator = ({
           <ChevronRight size={20} />
         </button>
 
-        <button className="btn-secondary" onClick={onOpenCalendarModal} style={{ padding: '0.5rem 0.85rem' }}>
+        <button
+          className="btn-secondary"
+          onClick={onOpenCalendar}
+          style={{ padding: '0.5rem 0.85rem' }}
+          title="Havi naptár megnyitása"
+        >
           <CalendarIcon size={18} />
-          <span style={{ fontSize: '0.85rem' }}>Naptár</span>
+          {/* Keskeny kijelzőn csak az ikon marad, hogy a nap-csíknak több hely jusson */}
+          <span className="hide-on-tiny" style={{ fontSize: '0.85rem' }}>Naptár</span>
         </button>
       </div>
     </div>

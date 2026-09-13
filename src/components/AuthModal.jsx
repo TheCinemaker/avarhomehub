@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { X, LogIn, UserPlus, Database, CheckCircle, KeyRound, Mail } from 'lucide-react';
-import { supabase, isSupabaseConfigured } from '../supabaseClient';
+import { supabase, isSupabaseConfigured, setRememberDevice } from '../supabaseClient';
+import { clearHomeHubLocalData } from '../hooks/useHomeStore';
+import { useModalBehavior } from '../hooks/useModalBehavior';
 
 export const AuthModal = ({ onClose }) => {
   const [mode, setMode] = useState('login');
@@ -10,6 +12,8 @@ export const AuthModal = ({ onClose }) => {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState(null);
   const [currentUserEmail, setCurrentUserEmail] = useState(null);
+
+  useModalBehavior(true, onClose);
 
   useEffect(() => {
     if (isSupabaseConfigured && supabase) {
@@ -36,6 +40,8 @@ export const AuthModal = ({ onClose }) => {
     setLoading(true);
 
     try {
+      setRememberDevice(rememberMe);
+
       if (mode === 'login') {
         const { data, error } = await supabase.auth.signInWithPassword({
           email: email.trim(),
@@ -48,7 +54,7 @@ export const AuthModal = ({ onClose }) => {
           setTimeout(() => onClose(), 1200);
         }
       } else {
-        const { data, error } = await supabase.auth.signUp({
+        const { error } = await supabase.auth.signUp({
           email: email.trim(),
           password
         });
@@ -67,11 +73,18 @@ export const AuthModal = ({ onClose }) => {
   };
 
   const handleLogout = async () => {
-    if (isSupabaseConfigured && supabase) {
-      await supabase.auth.signOut();
-      setCurrentUserEmail(null);
-      setMessage({ text: 'Sikeres kijelentkezés.', type: 'success' });
-    }
+    if (!isSupabaseConfigured || !supabase) return;
+    if (!window.confirm('Biztosan kijelentkezel? A készüléken tárolt helyi másolat is törlődik.')) return;
+
+    await supabase.auth.signOut();
+    // Enélkül az előző család bevásárlólistája, teendői és fotói a
+    // localStorage-ban maradtak, és a következő belépéskor azonnal
+    // megjelentek — akár egy másik fiók alatt is.
+    clearHomeHubLocalData();
+    setCurrentUserEmail(null);
+    setMessage({ text: 'Sikeres kijelentkezés.', type: 'success' });
+    // friss állapottal induljon a bejelentkező képernyő
+    window.location.reload();
   };
 
   return (

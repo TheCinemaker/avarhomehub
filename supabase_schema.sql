@@ -13,6 +13,8 @@ DROP TABLE IF EXISTS public.bills CASCADE;
 DROP TABLE IF EXISTS public.family_meals CASCADE;
 
 DROP POLICY IF EXISTS "Public Storage Access" ON storage.objects;
+DROP POLICY IF EXISTS "Product photos are publicly readable" ON storage.objects;
+DROP POLICY IF EXISTS "Authenticated users manage product photos" ON storage.objects;
 
 -- 2. CSALÁDI PROFILOK TÁBLA (Fiókonként / Családonként elkülönítve)
 CREATE TABLE public.family_profiles (
@@ -116,5 +118,14 @@ INSERT INTO storage.buckets (id, name, public)
 VALUES ('product-photos', 'product-photos', true)
 ON CONFLICT (id) DO NOTHING;
 
-CREATE POLICY "Public Storage Access" ON storage.objects
-FOR ALL USING (bucket_id = 'product-photos');
+-- A korábbi "Public Storage Access" házirend `FOR ALL USING (...)` volt,
+-- szerep-megkötés nélkül: így BÁRKI (bejelentkezés nélkül is) felülírhatta és
+-- törölhette a bucket tartalmát. Olvasás maradjon nyilvános (a bucket publikus,
+-- a képek <img src>-ből töltődnek), de írni/törölni csak bejelentkezve lehet.
+CREATE POLICY "Product photos are publicly readable" ON storage.objects
+FOR SELECT USING (bucket_id = 'product-photos');
+
+CREATE POLICY "Authenticated users manage product photos" ON storage.objects
+FOR ALL TO authenticated
+USING (bucket_id = 'product-photos')
+WITH CHECK (bucket_id = 'product-photos');

@@ -6,19 +6,16 @@ import { DayNavigator } from './components/DayNavigator';
 import { ShoppingTab } from './components/ShoppingTab';
 import { MealsTab } from './components/MealsTab';
 import { TodoTab } from './components/TodoTab';
-import { BillsTab } from './components/BillsTab';
 import { SettingsTab } from './components/SettingsTab';
 import { CalendarTab } from './components/CalendarTab';
-import { CalendarModal } from './components/CalendarModal';
 import { AuthScreen } from './components/AuthScreen';
 import { AuthModal } from './components/AuthModal';
-import { ShoppingCart, CheckSquare, CreditCard, Settings, Calendar, LogIn, Database, X, Utensils } from 'lucide-react';
+import { ShoppingCart, CheckSquare, Settings, Calendar, Utensils } from 'lucide-react';
 
 export function App() {
   const store = useHomeStore();
   // Primary default active tab: Bevásárlólista
   const [activeTab, setActiveTab] = useState('shopping');
-  const [isCalendarModalOpen, setIsCalendarModalOpen] = useState(false);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [sessionUser, setSessionUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
@@ -54,13 +51,9 @@ export function App() {
     return <AuthScreen onLoginSuccess={user => setSessionUser(user)} />;
   }
 
-  // User list order: Apa, Anya, Ármin, + Custom Users, Mindenki
-  const defaultOrder = ['apa', 'anya', 'gyerek'];
-  const orderedUsers = [
-    ...defaultOrder.map(id => store.users.find(u => u.id === id)).filter(Boolean),
-    ...store.users.filter(u => !defaultOrder.includes(u.id) && u.id !== 'everyone'),
-    store.users.find(u => u.id === 'everyone')
-  ].filter(Boolean);
+  // A sorrendet (Apa, Anya, Ármin, egyedi személyek, Mindannyian) a store
+  // tartja karban — itt már csak megjelenítjük.
+  const orderedUsers = store.users;
 
   return (
     <div>
@@ -78,9 +71,11 @@ export function App() {
                 className={`user-pill-btn ${isActive ? 'active' : ''}`}
                 onClick={() => store.setActiveUserId(u.id)}
                 style={isActive ? { background: u.color } : {}}
+                title={u.name}
+                aria-pressed={isActive}
               >
                 <span className="user-avatar-badge">{u.avatar}</span>
-                <span>{u.name}</span>
+                <span className="user-pill-name">{u.name}</span>
               </button>
             );
           })}
@@ -90,11 +85,14 @@ export function App() {
         <DayNavigator
           selectedDate={store.selectedDate}
           onSelectDate={store.setSelectedDate}
-          onOpenCalendarModal={() => setActiveTab('calendar')}
+          onOpenCalendar={() => setActiveTab('calendar')}
         />
 
-        {/* 4. Icon Tabs Side-by-Side (Bevásárlólista, Heti Étlap, Teendők) */}
-        <div className="three-tabs-bar" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
+        {/* 4. Fő fül-sáv.
+            Asztalon mind az 5 fül itt van — ott ugyanis nincs alsó navigáció,
+            és korábban a Profilok fül egyáltalán nem volt elérhető nagy
+            képernyőn. Mobilon az utolsó kettőt a CSS elrejti. */}
+        <div className="three-tabs-bar">
           <button
             className={`three-tab-btn ${activeTab === 'shopping' ? 'active' : ''}`}
             onClick={() => setActiveTab('shopping')}
@@ -117,6 +115,22 @@ export function App() {
           >
             <CheckSquare size={19} style={{ color: activeTab === 'todos' ? '#818cf8' : 'inherit' }} />
             <span>Teendők</span>
+          </button>
+
+          <button
+            className={`three-tab-btn tab-btn-desktop-only ${activeTab === 'calendar' ? 'active' : ''}`}
+            onClick={() => setActiveTab('calendar')}
+          >
+            <Calendar size={19} style={{ color: activeTab === 'calendar' ? '#38bdf8' : 'inherit' }} />
+            <span>Naptár</span>
+          </button>
+
+          <button
+            className={`three-tab-btn tab-btn-desktop-only ${activeTab === 'settings' ? 'active' : ''}`}
+            onClick={() => setActiveTab('settings')}
+          >
+            <Settings size={19} style={{ color: activeTab === 'settings' ? '#a855f7' : 'inherit' }} />
+            <span>Profilok</span>
           </button>
         </div>
 
@@ -177,25 +191,14 @@ export function App() {
           />
         )}
 
-        {/* Befizetnivalók kikommentezve az 1. körben
-        {activeTab === 'bills' && (
-          <BillsTab
-            bills={store.bills}
-            users={store.users}
-            activeUserId={store.activeUserId}
-            selectedDate={store.selectedDate}
-            onAddBill={store.addBillItem}
-            onToggleStatus={store.toggleBillStatus}
-            onReassignBill={store.reassignBillItem}
-            onDeleteBill={store.deleteBillItem}
-          />
-        )}
-        */}
+        {/* A Befizetnivalók fül (BillsTab) egyelőre nincs bekötve — a store
+            és a komponens készen áll, csak nincs rá fül a navigációban. */}
 
         {activeTab === 'settings' && (
           <SettingsTab
             users={store.users}
-            onUpdateUsers={store.setUsers}
+            onUpdateUserProfile={store.updateUserProfile}
+            onDeleteCustomUser={store.deleteCustomUser}
             onAddCustomUser={store.addCustomUser}
             onExport={store.exportDataJSON}
             onImport={store.importDataJSON}
@@ -245,18 +248,6 @@ export function App() {
             <span>Profilok</span>
           </button>
         </div>
-
-        {/* Full Month Calendar Modal */}
-        {isCalendarModalOpen && (
-          <CalendarModal
-            selectedDate={store.selectedDate}
-            onSelectDate={store.setSelectedDate}
-            onClose={() => setIsCalendarModalOpen(false)}
-            shoppingItems={store.shoppingItems}
-            todos={store.todos}
-            bills={store.bills}
-          />
-        )}
 
         {/* Supabase Auth Login / Register Modal */}
         {isLoginModalOpen && (

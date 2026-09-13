@@ -1,24 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { CalendarDays, ChevronLeft, ChevronRight, Plus, Check, Trash2, Clock, Calendar as CalendarIcon, RotateCcw } from 'lucide-react';
-
-const parseIsoDate = (dateStr) => {
-  if (!dateStr) return new Date();
-  const parts = dateStr.split('-');
-  if (parts.length === 3) {
-    const y = parseInt(parts[0], 10);
-    const m = parseInt(parts[1], 10) - 1;
-    const d = parseInt(parts[2], 10);
-    return new Date(y, m, d);
-  }
-  return new Date(dateStr);
-};
-
-const formatIsoDate = (date) => {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, '0');
-  const d = String(date.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
-};
+import { parseIsoDate, todayIso } from '../utils/date';
 
 export const CalendarTab = ({
   selectedDate,
@@ -62,7 +44,7 @@ export const CalendarTab = ({
     setCurrentMonthDate(new Date(year, month + 1, 1));
   };
 
-  const todayStr = formatIsoDate(new Date());
+  const todayStr = todayIso();
   const monthName = currentMonthDate.toLocaleDateString('hu-HU', { month: 'long', year: 'numeric' });
 
   // Generate calendar cells for the month grid
@@ -180,6 +162,16 @@ export const CalendarTab = ({
               key={cell.isoDate}
               className={`calendar-cell ${isToday ? 'is-today' : ''} ${isSelected ? 'is-selected' : ''}`}
               onClick={() => onSelectDate(cell.isoDate)}
+              role="button"
+              tabIndex={0}
+              aria-pressed={isSelected}
+              aria-label={`${cell.isoDate}${cell.pendingCount > 0 ? `, ${cell.pendingCount} nyitott teendő` : ''}`}
+              onKeyDown={e => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  onSelectDate(cell.isoDate);
+                }
+              }}
             >
               <span className="calendar-day-num">{cell.dayNum}</span>
               <div className="calendar-cell-dots">
@@ -217,14 +209,14 @@ export const CalendarTab = ({
         </div>
 
         {/* Quick Add Todo for Selected Date */}
-        <form onSubmit={handleAddQuickTodo} style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
+        <form onSubmit={handleAddQuickTodo} style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
           <input
             type="text"
             className="form-input"
             placeholder={`+ Új teendő erre a napra (${selectedDate})...`}
             value={newTodoTitle}
             onChange={e => setNewTodoTitle(e.target.value)}
-            style={{ fontSize: '0.95rem', padding: '0.65rem 0.95rem' }}
+            style={{ flex: '1 1 180px', width: 'auto' }}
           />
           <button type="submit" className="btn-primary" style={{ padding: '0.65rem 1.25rem', fontSize: '0.9rem', whiteSpace: 'nowrap' }}>
             <Plus size={16} /> Hozzáadás
@@ -233,7 +225,7 @@ export const CalendarTab = ({
 
         {/* List of Todos for Selected Date */}
         {selectedDayTodos.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '1.5rem', color: 'var(--text-muted)', background: 'rgba(15, 23, 42, 0.4)', borderRadius: 'var(--radius-md)', border: '1px border-glass' }}>
+          <div style={{ textAlign: 'center', padding: '1.5rem', color: 'var(--text-muted)', background: 'rgba(15, 23, 42, 0.4)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-glass)' }}>
             <CalendarIcon size={28} style={{ opacity: 0.3, marginBottom: '0.3rem' }} />
             <p style={{ fontSize: '0.875rem' }}>Ezen a napon ({selectedDate}) nincsenek feljegyezve teendők.</p>
           </div>
@@ -245,7 +237,12 @@ export const CalendarTab = ({
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  justify: 'space-between',
+                  // `justify` nem létező React style prop volt — csendben
+                  // eldobódott, ezért a jobb oldali vezérlők nem a szélre
+                  // igazodtak.
+                  justifyContent: 'space-between',
+                  gap: '0.5rem',
+                  flexWrap: 'wrap',
                   padding: '0.75rem 1rem',
                   background: 'rgba(30, 41, 59, 0.6)',
                   borderRadius: 'var(--radius-md)',
@@ -257,6 +254,16 @@ export const CalendarTab = ({
                   <div
                     className={`checkbox-custom ${task.isCompleted ? 'checked' : ''}`}
                     onClick={() => onToggleTask(task.id)}
+                    role="checkbox"
+                    aria-checked={task.isCompleted}
+                    aria-label={`${task.title} kész`}
+                    tabIndex={0}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        onToggleTask(task.id);
+                      }
+                    }}
                   >
                     {task.isCompleted && <Check size={14} />}
                   </div>
@@ -267,19 +274,11 @@ export const CalendarTab = ({
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
                   <select
+                    className="assignee-select"
                     value={task.assignedUser}
                     onChange={e => onReassignTask(task.id, e.target.value)}
-                    style={{
-                      background: 'rgba(15, 23, 42, 0.6)',
-                      color: users.find(u => u.id === task.assignedUser)?.color || 'var(--text-main)',
-                      border: '1px solid var(--border-glass)',
-                      borderRadius: 'var(--radius-full)',
-                      fontSize: '0.725rem',
-                      fontWeight: 700,
-                      padding: '0.1rem 0.4rem',
-                      outline: 'none',
-                      cursor: 'pointer'
-                    }}
+                    style={{ color: users.find(u => u.id === task.assignedUser)?.color || 'var(--text-main)' }}
+                    aria-label={`${task.title} felelőse`}
                   >
                     {users.map(u => (
                       <option key={u.id} value={u.id}>
@@ -288,8 +287,16 @@ export const CalendarTab = ({
                     ))}
                   </select>
 
-                  <button className="btn-icon" style={{ width: '28px', height: '28px' }} onClick={() => onDeleteTask(task.id)} title="Törlés">
-                    <Trash2 size={14} />
+                  <button
+                    className="btn-icon btn-icon-sm btn-icon-danger"
+                    onClick={() => {
+                      if (window.confirm(`Biztosan törlöd ezt a feladatot: "${task.title}"?`)) {
+                        onDeleteTask(task.id);
+                      }
+                    }}
+                    title="Feladat törlése"
+                  >
+                    <Trash2 size={15} />
                   </button>
                 </div>
               </div>

@@ -1,6 +1,14 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { CheckSquare, Plus, Trash2, Check, RefreshCw, X, UserPlus, Calendar } from 'lucide-react';
+import { useModalBehavior } from '../hooks/useModalBehavior';
+
+const PRIORITY_FILTERS = [
+  { key: 'all', label: 'Összes prioritás' },
+  { key: 'high', label: 'Magas' },
+  { key: 'medium', label: 'Közepes' },
+  { key: 'low', label: 'Alacsony' }
+];
 
 const CATEGORIES = ['Házimunka', 'Suli / Ovi', 'Ügyintézés', 'Autó', 'Kert', 'Hobbi', 'Egyéb'];
 
@@ -26,6 +34,14 @@ export const TodoTab = ({
   const [taskDate, setTaskDate] = useState(selectedDate);
   const [isRecurring, setIsRecurring] = useState(false);
   const [recurringFrequency, setRecurringFrequency] = useState('napi');
+
+  useModalBehavior(isModalOpen, () => setIsModalOpen(false));
+
+  const confirmDeleteTask = (task) => {
+    if (window.confirm(`Biztosan törlöd ezt a feladatot: "${task.title}"?`)) {
+      onDeleteTask(task.id);
+    }
+  };
 
   const filteredTasks = tasks.filter(task => {
     const matchesDate = showAllDates || task.date === selectedDate;
@@ -96,30 +112,16 @@ export const TodoTab = ({
 
       {/* Priority Filters */}
       <div className="filter-bar">
-        <button
-          className={`filter-chip ${priorityFilter === 'all' ? 'active' : ''}`}
-          onClick={() => setPriorityFilter('all')}
-        >
-          Összes prioritás
-        </button>
-        <button
-          className={`filter-chip ${priorityFilter === 'high' ? 'active' : ''}`}
-          onClick={() => setPriorityFilter('high')}
-        >
-          Magas
-        </button>
-        <button
-          className={`filter-chip ${priorityFilter === 'medium' ? 'active' : ''}`}
-          onClick={() => setPriorityFilter('medium')}
-        >
-          Közepes
-        </button>
-        <button
-          className={`filter-chip ${priorityFilter === 'low' ? 'active' : ''}`}
-          onClick={() => setPriorityFilter('low')}
-        >
-          Alacsony
-        </button>
+        {PRIORITY_FILTERS.map(f => (
+          <button
+            key={f.key}
+            className={`filter-chip ${priorityFilter === f.key ? 'active' : ''}`}
+            onClick={() => setPriorityFilter(f.key)}
+            aria-pressed={priorityFilter === f.key}
+          >
+            {f.label}
+          </button>
+        ))}
       </div>
 
       {/* Tasks List */}
@@ -137,6 +139,16 @@ export const TodoTab = ({
                 <div
                   className={`checkbox-custom ${task.isCompleted ? 'checked' : ''}`}
                   onClick={() => onToggleTask(task.id)}
+                  role="checkbox"
+                  aria-checked={task.isCompleted}
+                  aria-label={`${task.title} kész`}
+                  tabIndex={0}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      onToggleTask(task.id);
+                    }
+                  }}
                 >
                   {task.isCompleted && <Check size={14} />}
                 </div>
@@ -151,19 +163,11 @@ export const TodoTab = ({
                     <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
                       <UserPlus size={12} style={{ color: 'var(--text-dim)' }} />
                       <select
+                        className="assignee-select"
                         value={task.assignedUser}
                         onChange={e => onReassignTask(task.id, e.target.value)}
-                        style={{
-                          background: 'rgba(15, 23, 42, 0.6)',
-                          color: users.find(u => u.id === task.assignedUser)?.color || 'var(--text-main)',
-                          border: '1px solid var(--border-glass)',
-                          borderRadius: 'var(--radius-full)',
-                          fontSize: '0.75rem',
-                          fontWeight: 600,
-                          padding: '0.1rem 0.4rem',
-                          outline: 'none',
-                          cursor: 'pointer'
-                        }}
+                        style={{ color: users.find(u => u.id === task.assignedUser)?.color || 'var(--text-main)' }}
+                        aria-label={`${task.title} felelőse`}
                       >
                         {users.map(u => (
                           <option key={u.id} value={u.id}>
@@ -187,24 +191,12 @@ export const TodoTab = ({
 
               <div className="item-right">
                 <button
-                  className="btn-icon"
-                  style={{
-                    width: '34px',
-                    height: '34px',
-                    color: '#ef4444',
-                    background: 'rgba(239, 68, 68, 0.15)',
-                    border: '1px solid rgba(239, 68, 68, 0.35)',
-                    borderRadius: '8px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    cursor: 'pointer'
-                  }}
+                  className="btn-icon btn-icon-sm btn-icon-danger"
                   onClick={(e) => {
                     e.stopPropagation();
-                    onDeleteTask(task.id);
+                    confirmDeleteTask(task);
                   }}
-                  title="Törlés"
+                  title="Feladat törlése"
                 >
                   <Trash2 size={16} />
                 </button>

@@ -1,9 +1,12 @@
 import React, { useRef, useState } from 'react';
-import { Settings, Download, Upload, RefreshCw, User, ShieldCheck, Database, UserPlus, Plus } from 'lucide-react';
+import { Settings, Download, Upload, RefreshCw, User, ShieldCheck, Database, UserPlus, Plus, Trash2 } from 'lucide-react';
+
+const PROTECTED_USER_IDS = ['apa', 'anya', 'gyerek', 'everyone'];
 
 export const SettingsTab = ({
   users,
-  onUpdateUsers,
+  onUpdateUserProfile,
+  onDeleteCustomUser,
   onAddCustomUser,
   onExport,
   onImport,
@@ -15,16 +18,17 @@ export const SettingsTab = ({
   const [newUserName, setNewUserName] = useState('');
   const [newUserColor, setNewUserColor] = useState('#f59e0b');
 
-  const handleNameChange = (index, newName) => {
-    const updated = [...users];
-    updated[index].name = newName;
-    onUpdateUsers(updated);
+  // A profilmezők eddig index alapján, a state objektumát MUTÁLVA íródtak,
+  // és sosem jutottak el a Supabase-ig. Most azonosító szerint mennek, és a
+  // store gondoskodik a felhőbe mentésről is.
+  const handleProfileChange = (id, field, value) => {
+    onUpdateUserProfile(id, { [field]: value });
   };
 
-  const handleAvatarChange = (index, newAvatar) => {
-    const updated = [...users];
-    updated[index].avatar = newAvatar;
-    onUpdateUsers(updated);
+  const handleDeleteUser = (u) => {
+    if (window.confirm(`Biztosan törlöd "${u.name}" profilját? A hozzá rendelt tételek a „Mindannyian" gyűjtőbe kerülnek.`)) {
+      onDeleteCustomUser(u.id);
+    }
   };
 
   const handleAddMemberSubmit = (e) => {
@@ -59,7 +63,7 @@ export const SettingsTab = ({
         </div>
         
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem', marginBottom: '1.25rem' }}>
-          {users.map((u, idx) => (
+          {users.map(u => (
             <div
               key={u.id}
               style={{
@@ -85,31 +89,60 @@ export const SettingsTab = ({
                 >
                   {u.avatar}
                 </span>
-                <span style={{ fontWeight: 700, color: u.color }}>{u.name}</span>
-                {u.isCustom && (
-                  <span style={{ fontSize: '0.65rem', background: 'rgba(56, 189, 248, 0.2)', color: '#38bdf8', padding: '1px 5px', borderRadius: '4px', marginLeft: 'auto' }}>
-                    Egyedi
-                  </span>
-                )}
+                <span style={{ fontWeight: 700, color: u.color, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {u.name}
+                </span>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginLeft: 'auto', flexShrink: 0 }}>
+                  {u.isCustom && (
+                    <span style={{ fontSize: '0.65rem', background: 'rgba(56, 189, 248, 0.2)', color: '#38bdf8', padding: '1px 5px', borderRadius: '4px' }}>
+                      Egyedi
+                    </span>
+                  )}
+                  {!PROTECTED_USER_IDS.includes(u.id) && (
+                    <button
+                      className="btn-icon btn-icon-sm btn-icon-danger"
+                      onClick={() => handleDeleteUser(u)}
+                      title={`${u.name} profiljának törlése`}
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  )}
+                </div>
               </div>
 
               <div className="form-group">
-                <label>Név</label>
+                <label htmlFor={`name-${u.id}`}>Név</label>
                 <input
+                  id={`name-${u.id}`}
                   type="text"
                   className="form-input"
                   value={u.name}
-                  onChange={e => handleNameChange(idx, e.target.value)}
+                  onChange={e => handleProfileChange(u.id, 'name', e.target.value)}
                 />
               </div>
 
               <div className="form-group">
-                <label>Monogram / Jelzés</label>
+                <label htmlFor={`avatar-${u.id}`}>Monogram / Jelzés</label>
                 <input
+                  id={`avatar-${u.id}`}
                   type="text"
                   className="form-input"
+                  maxLength={3}
                   value={u.avatar}
-                  onChange={e => handleAvatarChange(idx, e.target.value)}
+                  onChange={e => handleProfileChange(u.id, 'avatar', e.target.value)}
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor={`color-${u.id}`}>Profil színe</label>
+                <input
+                  id={`color-${u.id}`}
+                  type="color"
+                  className="form-input"
+                  value={u.color}
+                  onChange={e => handleProfileChange(u.id, 'color', e.target.value)}
+                  style={{ padding: '0.2rem', height: '44px', cursor: 'pointer' }}
                 />
               </div>
             </div>
@@ -172,12 +205,17 @@ export const SettingsTab = ({
             onChange={e => {
               const file = e.target.files?.[0];
               if (file) {
-                const reader = new FileReader();
-                reader.onload = ev => onImport(ev.target?.result);
-                reader.readAsText(file);
+                // A betöltés felülírja a jelenlegi adatokat — ezt előbb kérdezzük meg
+                if (window.confirm('A mentés betöltése felülírja a jelenlegi listákat és profilokat. Folytatod?')) {
+                  const reader = new FileReader();
+                  reader.onload = ev => onImport(ev.target?.result);
+                  reader.readAsText(file);
+                }
               }
+              // ugyanaz a fájl újra kiválasztható legyen
+              e.target.value = '';
             }}
-            accept=".json"
+            accept=".json,application/json"
             style={{ display: 'none' }}
           />
 
