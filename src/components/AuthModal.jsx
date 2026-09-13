@@ -137,12 +137,7 @@ export const AuthModal = ({ onClose }) => {
               </button>
             </div>
 
-            {/* Supabase Status Banner */}
-            {!isSupabaseConfigured && (
-              <div style={{ padding: '0.75rem 1rem', background: 'rgba(245, 158, 11, 0.15)', border: '1px solid rgba(245, 158, 11, 0.4)', borderRadius: 'var(--radius-md)', fontSize: '0.825rem', color: '#f59e0b', marginBottom: '1rem' }}>
-                <strong>Supabase Kész!</strong> Illeszd be a projekted <code>VITE_SUPABASE_URL</code> és <code>VITE_SUPABASE_ANON_KEY</code> kulcsait a <code>.env</code> fájlba az élő szinkronizációhoz.
-              </div>
-            )}
+
 
             {message && (
               <div style={{ padding: '0.75rem 1rem', background: message.type === 'success' ? 'rgba(52, 211, 153, 0.15)' : 'rgba(239, 68, 68, 0.15)', border: `1px solid ${message.type === 'success' ? 'rgba(52, 211, 153, 0.4)' : 'rgba(239, 68, 68, 0.4)'}`, borderRadius: 'var(--radius-md)', fontSize: '0.85rem', color: message.type === 'success' ? '#34d399' : '#ef4444', marginBottom: '1rem' }}>

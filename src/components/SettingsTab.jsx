@@ -188,26 +188,25 @@ export const SettingsTab = ({
         </div>
       </div>
 
-      {/* Cloud & Netlify Deployment info */}
+      {/* Cloud & Supabase Status */}
       <div
         style={{
           padding: '1rem 1.25rem',
-          background: 'rgba(99, 102, 241, 0.1)',
+          background: 'rgba(52, 211, 153, 0.1)',
           borderRadius: 'var(--radius-md)',
-          border: '1px solid rgba(99, 102, 241, 0.3)',
+          border: '1px solid rgba(52, 211, 153, 0.3)',
           display: 'flex',
           gap: '1rem',
           alignItems: 'flex-start'
         }}
       >
-        <ShieldCheck size={24} style={{ color: '#818cf8', flexShrink: 0, marginTop: '2px' }} />
+        <ShieldCheck size={24} style={{ color: '#34d399', flexShrink: 0, marginTop: '2px' }} />
         <div>
-          <div style={{ fontWeight: 700, color: '#818cf8', marginBottom: '0.25rem' }}>
-            Local-first architektúra & Felhő felkészítve
+          <div style={{ fontWeight: 700, color: '#34d399', marginBottom: '0.25rem' }}>
+            Supabase Felhő Szinkronizáció & Automatikus Mentés
           </div>
           <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
-            Jelenleg minden adatot a böngésző local storage tárhelye őriz azonnal és offline is működik.
-            Amikor készen állsz a Netlify / GitHub feltöltésre, a strukturált adattípusok miatt könnyedén összeköthető Supabase vagy Firebase felhő adatbázissal a 3 user közötti valós idejű szinkronizációhoz!
+            Minden családi tétel, teendő és termékfotó azonnal szinkronizálódik a Supabase adatbázissal. Az alkalmazás emellett offline is azonnal elérhető és ment.
           </p>
         </div>
       </div>

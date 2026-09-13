@@ -32,7 +32,7 @@ export const Header = ({
             color: '#a5b4fc',
             minHeight: '36px'
           }}
-          title="Supabase bejelentkezés (Hamarosan)"
+          title="Bejelentkezés"
         >
           <LogIn size={15} />
           <span>Bejelentkezés</span>
