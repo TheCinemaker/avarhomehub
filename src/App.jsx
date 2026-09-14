@@ -10,6 +10,8 @@ import { SettingsTab } from './components/SettingsTab';
 import { CalendarTab } from './components/CalendarTab';
 import { AuthScreen } from './components/AuthScreen';
 import { AuthModal } from './components/AuthModal';
+import { UpdateBanner } from './components/UpdateBanner';
+import { Footer } from './components/Footer';
 import { ShoppingCart, CheckSquare, Settings, Calendar, Utensils } from 'lucide-react';
 
 // Egyetlen forrás a navigációhoz — az asztali fülsáv és a mobil alsó sáv
@@ -90,6 +92,7 @@ export function App() {
 
   return (
     <div>
+      <UpdateBanner />
       {/* 1. Sticky Header (40% transparent, HomeHub a rendszerező, Login/Fiók) */}
       <Header sessionUser={sessionUser} onOpenLogin={() => setIsLoginModalOpen(true)} />
 
@@ -238,6 +241,8 @@ export function App() {
         {isLoginModalOpen && (
           <AuthModal onClose={() => setIsLoginModalOpen(false)} />
         )}
+
+        <Footer />
       </div>
     </div>
   );

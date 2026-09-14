@@ -256,8 +256,10 @@ export function useHomeStore() {
           await seedDefaultStores(authUserId);
         }
 
-        const { data: remoteProfiles } = await supabase!.from('family_profiles').select('*');
-        if (remoteProfiles && remoteProfiles.length > 0) {
+        const { data: remoteProfiles, error: profError } = await supabase!.from('family_profiles').select('*');
+        if (profError) {
+          console.error('[Supabase Sync Error] Hiba a profilok letöltésekor:', profError);
+        } else if (remoteProfiles && remoteProfiles.length > 0) {
           const mapped: UserProfile[] = remoteProfiles.map((p: any) => ({
             id: p.id,
             name: p.name,
@@ -265,23 +267,8 @@ export function useHomeStore() {
             color: p.color,
             isCustom: p.is_custom
           }));
-
-          // ÖSSZEFÉSÜLÉS, nem felülírás!
-          // Korábban `setUsers(mapped)` volt: mivel az alapprofilok (apa,
-          // anya, gyerek, everyone) csak regisztrációkor kerülnek be a
-          // táblába, egy hiányos family_profiles azonnal kitörölte őket a
-          // felhasználó-kapcsolóból — és a rájuk hivatkozó tételek eltűntek
-          // minden szűrőből.
-          setUsers(prev => {
-            const byId = new Map(prev.map(u => [u.id, u]));
-            mapped.forEach(u => byId.set(u.id, { ...byId.get(u.id), ...u }));
-            INITIAL_USERS.forEach(u => {
-              if (!byId.has(u.id)) byId.set(u.id, u);
-            });
-            return sortUsers(Array.from(byId.values()));
-          });
-        } else {
-          // Üres a tábla -> ez egy frissen visszaigazolt fiók első betöltése.
+          setUsers(sortUsers(mapped));
+        } else if (remoteProfiles) {
           await seedDefaultProfiles(authUserId);
         }
 
@@ -310,10 +297,6 @@ export function useHomeStore() {
     loadFromSupabase();
 
     // Összevont újratöltés.
-    // Korábban MINDEN realtime-esemény azonnal 5 lekérdezést indított — a
-    // saját pipáink is. Egy „mindent a listára" művelet (pl. hozzávalók
-    // másolása) így tucatnyi teljes újratöltést eredményezett, mobilneten is.
-    // 400 ms-os összevonással egy eseménysorozatból egyetlen frissítés lesz.
     let reloadTimer: ReturnType<typeof setTimeout> | null = null;
     const scheduleReload = () => {
       if (reloadTimer) clearTimeout(reloadTimer);
@@ -323,18 +306,60 @@ export function useHomeStore() {
       }, 400);
     };
 
-    // Subscribe to Supabase Realtime WebSocket changes across all family devices
-    const channel = supabase.channel('homehub-family-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'shopping_items' }, scheduleReload)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'todo_tasks' }, scheduleReload)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'stores' }, scheduleReload)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'family_profiles' }, scheduleReload)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'family_meals' }, scheduleReload)
-      .subscribe();
+    // Supabase Realtime WebSocket Feliratkozás & Újracsatlakozó Logika
+    let channel: any = null;
+
+    const setupRealtimeChannel = () => {
+      if (channel) {
+        try { supabase.removeChannel(channel); } catch { /* ignore */ }
+      }
+
+      channel = supabase.channel(`homehub-family-realtime-${Date.now()}`)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'shopping_items' }, scheduleReload)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'todo_tasks' }, scheduleReload)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'stores' }, scheduleReload)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'family_profiles' }, scheduleReload)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'family_meals' }, scheduleReload)
+        .subscribe((status: string) => {
+          if (status === 'SUBSCRIBED') {
+            console.log('[Supabase Realtime] Kapcsolódva a felhőhöz (WebSocket aktív)');
+          } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+            console.warn('[Supabase Realtime] WebSocket kapcsolat megszakadt status:', status);
+          }
+        });
+    };
+
+    setupRealtimeChannel();
+
+    // iOS / Mobile PWA Resume & Visibility Listener
+    // Amikor az iPhone kijelzője feloldódik vagy az app előtérbe kerül, frissítünk és újracsatlakozunk
+    const handleAppResume = () => {
+      if (document.visibilityState === 'visible') {
+        loadFromSupabase();
+        setupRealtimeChannel();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleAppResume);
+    window.addEventListener('focus', handleAppResume);
+    window.addEventListener('online', handleAppResume);
+
+    // Aktív Kijelző Ticker (12s) — amíg az alkalmazás nyitva van a kijelzőn
+    const activeTicker = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        loadFromSupabase();
+      }
+    }, 12000);
 
     return () => {
       if (reloadTimer) clearTimeout(reloadTimer);
-      supabase.removeChannel(channel);
+      clearInterval(activeTicker);
+      document.removeEventListener('visibilitychange', handleAppResume);
+      window.removeEventListener('focus', handleAppResume);
+      window.removeEventListener('online', handleAppResume);
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
     };
   }, [authUserId]);
 
@@ -392,22 +417,21 @@ export function useHomeStore() {
 
     const userId = await getAuthUserId();
     if (isSupabaseConfigured && supabase && userId) {
-      supabase.from('family_profiles').insert([{
+      const { error } = await supabase.from('family_profiles').insert([{
         id: newUser.id,
         user_id: userId,
         name: newUser.name,
         avatar: newUser.avatar,
         color: newUser.color,
         is_custom: true
-      }]).then();
+      }]);
+      if (error) {
+        console.error('[Supabase Profile Write Error] Hiba a profil hozzáadásakor:', error);
+      }
     }
   };
 
   // Actions: Profil szerkesztése (név / monogram / szín)
-  //
-  // Eddig a SettingsTab közvetlenül `setUsers`-t hívott, így az átnevezés
-  // sosem jutott el a Supabase-ig, és az első realtime-frissítés vissza is
-  // állította a régi nevet.
   const updateUserProfile = (id: string, updates: Partial<UserProfile>) => {
     let merged: UserProfile | undefined;
 
@@ -419,28 +443,28 @@ export function useHomeStore() {
 
     if (!isSupabaseConfigured || !supabase || !merged) return;
 
-    // Gépelés közben ne menjen minden leütésre kérés a felhőbe — a profilnév
-    // beírása így 1 írás, nem 8.
     const pending = profileSaveTimers.current;
     if (pending[id]) clearTimeout(pending[id]);
 
     const snapshot = merged;
     pending[id] = setTimeout(async () => {
       delete pending[id];
-      const authUserId = await getAuthUserId();
-      if (!authUserId) return;
+      const userId = await getAuthUserId();
+      if (!userId) return;
 
-      // upsert: az alapprofilok (apa/anya/gyerek/everyone) lehet, hogy még
-      // egyáltalán nincsenek benne a táblában — ilyenkor beszúrjuk őket.
-      supabase!.from('family_profiles').upsert([{
+      const { error } = await supabase!.from('family_profiles').upsert([{
         id,
-        user_id: authUserId,
+        user_id: userId,
         name: snapshot.name,
         avatar: snapshot.avatar,
         color: snapshot.color,
         is_custom: Boolean(snapshot.isCustom)
-      }], { onConflict: 'id,user_id' }).then();
-    }, 700);
+      }], { onConflict: 'id,user_id' });
+
+      if (error) {
+        console.error('[Supabase Profile Update Error] Hiba a profil frissítésekor:', error);
+      }
+    }, 300);
   };
 
   const deleteCustomUser = async (id: string) => {
@@ -450,15 +474,17 @@ export function useHomeStore() {
     setUsers(prev => prev.filter(u => u.id !== id));
     if (activeUserId === id) setActiveUserId('everyone');
 
-    // A hozzá rendelt tételek ne váljanak láthatatlanná: átkerülnek a
-    // „Mindannyian" gyűjtőre.
     setShoppingItems(prev => prev.map(i => (i.assignedUser === id ? { ...i, assignedUser: 'everyone' } : i)));
     setTodos(prev => prev.map(t => (t.assignedUser === id ? { ...t, assignedUser: 'everyone' } : t)));
 
-    if (isSupabaseConfigured && supabase) {
-      supabase.from('family_profiles').delete().eq('id', id).then();
-      supabase.from('shopping_items').update({ assigned_user: 'everyone' }).eq('assigned_user', id).then();
-      supabase.from('todo_tasks').update({ assigned_user: 'everyone' }).eq('assigned_user', id).then();
+    const userId = await getAuthUserId();
+    if (isSupabaseConfigured && supabase && userId) {
+      const { error: profErr } = await supabase.from('family_profiles').delete().eq('id', id).eq('user_id', userId);
+      if (profErr) {
+        console.error('[Supabase Profile Delete Error] Hiba a profil törlésekor:', profErr);
+      }
+      await supabase.from('shopping_items').update({ assigned_user: 'everyone' }).eq('assigned_user', id).eq('user_id', userId);
+      await supabase.from('todo_tasks').update({ assigned_user: 'everyone' }).eq('assigned_user', id).eq('user_id', userId);
     }
   };
 
