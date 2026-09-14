@@ -470,13 +470,13 @@ export const MealsTab = ({
                 <textarea
                   className="form-input"
                   rows={3}
-                  placeholder="pl. 1kg krumpli, 50dkg kolbász, 1 vödör tejföl, 6 tojás (vesszővel vagy soronként elválasztva)"
+                  placeholder="pl. Barilla spaghetti tészta, 50dkg darált hús, 1 flakon tejszín"
                   value={ingredients}
                   onChange={e => setIngredients(e.target.value)}
                   style={{ resize: 'vertical' }}
                 />
-                <span style={{ fontSize: '0.775rem', color: 'var(--text-dim)', marginTop: '2px' }}>
-                  A hozzávalókat 1 kattintással felveheted a bevásárlólistára!
+                <span style={{ fontSize: '0.775rem', color: '#38bdf8', marginTop: '3px', display: 'block' }}>
+                  💡 Vesszővel (,), pontosvesszővel (;) vagy új sorral válaszd el az ételeket! A több szavas nevek (pl. „Barilla spaghetti tészta”) egyben maradnak.
                 </span>
               </div>
 
