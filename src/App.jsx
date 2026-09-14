@@ -195,6 +195,9 @@ export function App() {
             selectedDate={store.selectedDate}
             onSelectDate={store.setSelectedDate}
             todos={store.todos}
+            shoppingItems={store.shoppingItems}
+            meals={store.meals}
+            bills={store.bills}
             users={store.users}
             activeUserId={store.activeUserId}
             onAddTask={store.addTodoTask}
@@ -202,6 +205,11 @@ export function App() {
             onToggleTask={store.toggleTodoTask}
             onReassignTask={store.reassignTodoTask}
             onDeleteTask={store.deleteTodoTask}
+            onAddShoppingItem={store.addShoppingItem}
+            onToggleShoppingItem={store.toggleShoppingItem}
+            onDeleteShoppingItem={store.deleteShoppingItem}
+            onDeleteMeal={store.deleteMeal}
+            onAddIngredientsToShoppingList={store.addIngredientsToShoppingList}
           />
         )}
 
