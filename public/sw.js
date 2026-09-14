@@ -1,4 +1,4 @@
-const CACHE_NAME = 'homehub-cache-v4.3.2';
+const CACHE_NAME = 'homehub-cache-v4.3.3';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();

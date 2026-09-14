@@ -122,21 +122,39 @@ export const MealsTab = ({
     } else {
       onAddMeal(mealData);
       if (autoAddToShopping && ingredients.trim()) {
-        onAddIngredientsToShoppingList(ingredients.trim(), selectedStoreForShopping);
+        const dayName = getDayNameFromDate(mealDate);
+        onAddIngredientsToShoppingList(
+          ingredients.trim(),
+          selectedStoreForShopping,
+          { date: mealDate, mealTitle: title.trim(), mealType, dayName }
+        );
       }
     }
 
     setIsModalOpen(false);
   };
 
-  const handleCopyIngredients = (ingredientsStr, mealId) => {
-    if (!ingredientsStr) return;
-    onAddIngredientsToShoppingList(ingredientsStr, selectedStoreForShopping);
-    setSyncedMealIds(prev => new Set([...prev, mealId]));
+  const getDayNameFromDate = (dateStr) => {
+    if (!dateStr) return '';
+    const d = parseIsoDate(dateStr);
+    const dayIndex = d.getDay();
+    const dayObj = DAYS_OF_WEEK.find(dw => dw.key === dayIndex);
+    return dayObj ? dayObj.name : '';
+  };
+
+  const handleCopyIngredients = (ingredientsStr, meal) => {
+    if (!ingredientsStr || !meal) return;
+    const dayName = getDayNameFromDate(meal.date);
+    onAddIngredientsToShoppingList(
+      ingredientsStr,
+      selectedStoreForShopping,
+      { date: meal.date, mealTitle: meal.title, mealType: meal.mealType, dayName }
+    );
+    setSyncedMealIds(prev => new Set([...prev, meal.id]));
     setTimeout(() => {
       setSyncedMealIds(prev => {
         const next = new Set(prev);
-        next.delete(mealId);
+        next.delete(meal.id);
         return next;
       });
     }, 3000);
@@ -264,7 +282,7 @@ export const MealsTab = ({
                         <div style={{ fontSize: '0.875rem', color: 'var(--text-main)', marginTop: '2px' }}>{meal.ingredients}</div>
                         <button
                           className="btn-secondary"
-                          onClick={() => handleCopyIngredients(meal.ingredients, meal.id)}
+                          onClick={() => handleCopyIngredients(meal.ingredients, meal)}
                           style={{ marginTop: '0.5rem', padding: '0.35rem 0.75rem', fontSize: '0.8rem', color: isSynced ? '#34d399' : '#38bdf8', borderColor: isSynced ? '#34d399' : 'rgba(56, 189, 248, 0.4)' }}
                         >
                           {isSynced ? <Check size={14} /> : <ShoppingBag size={14} />}
@@ -363,7 +381,7 @@ export const MealsTab = ({
                                 </div>
                                 <button
                                   className="btn-quiet btn-sm"
-                                  onClick={() => handleCopyIngredients(meal.ingredients, meal.id)}
+                                  onClick={() => handleCopyIngredients(meal.ingredients, meal)}
                                   style={isSynced ? { color: 'var(--ok)' } : undefined}
                                 >
                                   {isSynced ? <Check size={13} /> : <Plus size={13} />}

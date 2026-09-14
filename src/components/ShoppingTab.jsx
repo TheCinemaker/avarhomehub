@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 // FIGYELEM: a lucide `Image` ikonját kötelező átnevezni! Sima `Image` néven
 // elfedné a böngésző beépített Image konstruktorát, amit a képtömörítés
 // használ — emiatt a fotófeltöltés némán, nyom nélkül elhalt.
-import { ShoppingCart, Plus, Trash2, Check, Store, X, Maximize2, ShoppingBag, Camera, Image as ImageIcon, Filter, Pencil, Save } from 'lucide-react';
+import { ShoppingCart, Plus, Trash2, Check, Store, X, Maximize2, ShoppingBag, Camera, Image as ImageIcon, Filter, Pencil, Save, Utensils } from 'lucide-react';
 import { useModalBehavior } from '../hooks/useModalBehavior';
 import { todayIso } from '../utils/date';
 
@@ -345,9 +345,26 @@ export const ShoppingTab = ({
                 )}
 
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div className="compact-item-title">
-                    {item.title}
-                    {item.quantity && <span className="item-qty">{item.quantity}</span>}
+                  <div className="compact-item-title" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+                    <span>{item.title}</span>
+                    {item.quantity && !item.quantity.startsWith('📌') && <span className="item-qty">{item.quantity}</span>}
+                    {(item.mealTag || (item.quantity && item.quantity.startsWith('📌'))) && (
+                      <span className="meal-tag-badge" style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.25rem',
+                        fontSize: '0.72rem',
+                        padding: '0.15rem 0.5rem',
+                        borderRadius: '999px',
+                        background: 'rgba(249, 115, 22, 0.18)',
+                        color: '#fb923c',
+                        border: '1px solid rgba(249, 115, 22, 0.35)',
+                        fontWeight: 600
+                      }}>
+                        <Utensils size={10} />
+                        {item.mealTag || item.quantity}
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -463,9 +480,28 @@ export const ShoppingTab = ({
                           <img src={item.imageUrl} alt={item.title} style={{ width: '48px', height: '48px', borderRadius: '8px', objectFit: 'cover' }} />
                         )}
                         <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: '1.1rem', fontWeight: 700 }}>{item.title}</div>
+                          <div style={{ fontSize: '1.1rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                            <span>{item.title}</span>
+                            {(item.mealTag || (item.quantity && item.quantity.startsWith('📌'))) && (
+                              <span style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '0.3rem',
+                                fontSize: '0.75rem',
+                                padding: '0.2rem 0.55rem',
+                                borderRadius: '999px',
+                                background: 'rgba(249, 115, 22, 0.22)',
+                                color: '#fb923c',
+                                border: '1px solid rgba(249, 115, 22, 0.4)',
+                                fontWeight: 600
+                              }}>
+                                <Utensils size={12} />
+                                {item.mealTag || item.quantity}
+                              </span>
+                            )}
+                          </div>
                           <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                            {item.quantity && <span>{item.quantity} • </span>}
+                            {item.quantity && !item.quantity.startsWith('📌') && <span>{item.quantity} • </span>}
                             <span style={{ color: '#38bdf8', fontWeight: 600 }}>{item.store}</span>
                           </div>
                         </div>

@@ -845,7 +845,11 @@ export function useHomeStore() {
   };
 
   // Helper: Copy Recipe Ingredients to Shopping List with 1 click
-  const addIngredientsToShoppingList = async (ingredientsStr: string, targetStore: string = 'Lidl') => {
+  const addIngredientsToShoppingList = async (
+    ingredientsStr: string,
+    targetStore: string = 'Lidl',
+    mealContext?: { date?: string; mealTitle?: string; mealType?: string; dayName?: string }
+  ) => {
     if (!ingredientsStr || !ingredientsStr.trim()) return;
     const parts = ingredientsStr.split(/[,;\n]+/).map(p => p.trim()).filter(Boolean);
     if (parts.length === 0) return;
@@ -853,6 +857,15 @@ export function useHomeStore() {
     const newItems: ShoppingItem[] = [];
     const userId = await getAuthUserId();
     const today = getRelativeDate(0);
+    const itemDate = mealContext?.date || today;
+
+    let tagString = '';
+    if (mealContext) {
+      const dayStr = mealContext.dayName || '';
+      const typeStr = mealContext.mealType === 'vacsora' ? 'vacsora' : 'ebéd';
+      const titleStr = mealContext.mealTitle ? ` (${mealContext.mealTitle})` : '';
+      tagString = `📌 ${dayStr ? `${dayStr}i` : ''} ${typeStr}${titleStr}`.trim();
+    }
 
     for (const rawPart of parts) {
       const id = `shop-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
@@ -861,24 +874,30 @@ export function useHomeStore() {
         title: rawPart,
         store: targetStore,
         category: 'Élelmiszer',
-        date: today,
+        date: itemDate,
         assignedUser: activeUserId,
         isCompleted: false,
-        estimatedPrice: 0
+        estimatedPrice: 0,
+        mealTag: tagString || undefined,
+        quantity: tagString ? tagString : undefined
       };
       newItems.push(newItem);
 
       if (isSupabaseConfigured && supabase && userId) {
-        supabase.from('shopping_items').insert([{
+        const { error } = await supabase.from('shopping_items').insert([{
           id: newItem.id,
           user_id: userId,
           title: newItem.title,
+          quantity: newItem.quantity,
           store: newItem.store,
           category: newItem.category,
           date: newItem.date,
           assigned_user: newItem.assignedUser,
           is_completed: false
-        }]).then();
+        }]);
+        if (error) {
+          console.error('[Supabase Write Error] Hiba a hozzávaló mentésekor:', error);
+        }
       }
     }
 
