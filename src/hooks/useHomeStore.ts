@@ -228,10 +228,32 @@ export function useHomeStore() {
           setTodos([]);
         }
 
-        const { data: remoteStores } = await supabase!.from('stores').select('name');
-        if (remoteStores && remoteStores.length > 0) {
+        async function seedDefaultStores(authUserId: string) {
+          try {
+            const defaultNames = ['Lidl', 'Aldi', 'SPAR', 'Tesco', 'Penny', 'Auchan', 'DM', 'Rossmann', 'Egyéb'];
+            const payload = defaultNames.map(name => ({
+              user_id: authUserId,
+              name
+            }));
+            const { data: inserted, error } = await supabase!.from('stores').insert(payload).select('name');
+            if (error) {
+              console.warn('Alapértelmezett boltok létrehozása sikertelen:', error);
+            } else if (inserted && inserted.length > 0) {
+              setStores(inserted.map((s: any) => s.name));
+            }
+          } catch (err) {
+            console.warn('Alapértelmezett boltok seed warning:', err);
+          }
+        }
+
+        const { data: remoteStores, error: storesError } = await supabase!.from('stores').select('name');
+        if (storesError) {
+          console.error('[Supabase Sync Error] Hiba a boltok letöltésekor:', storesError);
+        } else if (remoteStores && remoteStores.length > 0) {
           const names = remoteStores.map((s: any) => s.name);
-          setStores(prev => Array.from(new Set([...prev, ...names])));
+          setStores(names);
+        } else if (remoteStores) {
+          await seedDefaultStores(authUserId);
         }
 
         const { data: remoteProfiles } = await supabase!.from('family_profiles').select('*');
@@ -263,8 +285,10 @@ export function useHomeStore() {
           await seedDefaultProfiles(authUserId);
         }
 
-        const { data: remoteMeals } = await supabase!.from('family_meals').select('*');
-        if (remoteMeals && remoteMeals.length > 0) {
+        const { data: remoteMeals, error: mealsError } = await supabase!.from('family_meals').select('*');
+        if (mealsError) {
+          console.error('[Supabase Sync Error] Hiba a heti étlap letöltésekor:', mealsError);
+        } else if (remoteMeals && remoteMeals.length > 0) {
           const mapped: MealItem[] = remoteMeals.map((r: any) => ({
             id: r.id,
             date: r.date || getRelativeDate(0),
@@ -275,6 +299,8 @@ export function useHomeStore() {
             notes: r.notes || undefined
           }));
           setMeals(mapped);
+        } else if (remoteMeals) {
+          setMeals([]);
         }
       } catch (err) {
         console.warn('Supabase sync warning:', err);
@@ -439,12 +465,60 @@ export function useHomeStore() {
   // Actions: Custom Stores
   const addCustomStore = async (newStoreName: string) => {
     const trimmed = newStoreName.trim();
-    if (trimmed && !stores.includes(trimmed)) {
-      setStores(prev => [...prev, trimmed]);
+    if (!trimmed || stores.includes(trimmed)) return;
 
-      const userId = await getAuthUserId();
-      if (isSupabaseConfigured && supabase && userId) {
-        supabase.from('stores').insert([{ user_id: userId, name: trimmed }]).then();
+    setStores(prev => [...prev, trimmed]);
+
+    const userId = await getAuthUserId();
+    if (isSupabaseConfigured && supabase && userId) {
+      const { error } = await supabase.from('stores').insert([{ user_id: userId, name: trimmed }]);
+      if (error) {
+        console.error('[Supabase Write Error] Hiba a bolt hozzáadásakor:', error);
+      }
+    }
+  };
+
+  const updateCustomStore = async (oldName: string, newName: string) => {
+    const trimmed = newName.trim();
+    if (!trimmed || oldName === trimmed) return;
+
+    setStores(prev => prev.map(s => (s === oldName ? trimmed : s)));
+    setShoppingItems(prev => prev.map(item => (item.store === oldName ? { ...item, store: trimmed } : item)));
+
+    const userId = await getAuthUserId();
+    if (isSupabaseConfigured && supabase && userId) {
+      const { error: storeErr } = await supabase
+        .from('stores')
+        .update({ name: trimmed })
+        .eq('name', oldName)
+        .eq('user_id', userId);
+      if (storeErr) {
+        console.error('[Supabase Update Error] Hiba a bolt átnevezésekor:', storeErr);
+      }
+
+      const { error: itemErr } = await supabase
+        .from('shopping_items')
+        .update({ store: trimmed })
+        .eq('store', oldName)
+        .eq('user_id', userId);
+      if (itemErr) {
+        console.error('[Supabase Update Error] Hiba a bolt elemeinek frissítésekor:', itemErr);
+      }
+    }
+  };
+
+  const deleteCustomStore = async (storeName: string) => {
+    setStores(prev => prev.filter(s => s !== storeName));
+
+    const userId = await getAuthUserId();
+    if (isSupabaseConfigured && supabase && userId) {
+      const { error } = await supabase
+        .from('stores')
+        .delete()
+        .eq('name', storeName)
+        .eq('user_id', userId);
+      if (error) {
+        console.error('[Supabase Delete Error] Hiba a bolt törlésekor:', error);
       }
     }
   };
@@ -460,7 +534,7 @@ export function useHomeStore() {
 
     const userId = await getAuthUserId();
     if (isSupabaseConfigured && supabase && userId) {
-      supabase.from('shopping_items').insert([{
+      const { error } = await supabase.from('shopping_items').insert([{
         id: newItem.id,
         user_id: userId,
         title: newItem.title,
@@ -472,11 +546,14 @@ export function useHomeStore() {
         assigned_user: newItem.assignedUser,
         image_url: newItem.imageUrl,
         is_completed: false
-      }]).then();
+      }]);
+      if (error) {
+        console.error('[Supabase Write Error] Hiba a bevásárlási tétel mentésekor:', error);
+      }
     }
   };
 
-  const toggleShoppingItem = (id: string) => {
+  const toggleShoppingItem = async (id: string) => {
     let updatedCompleted = false;
     setShoppingItems(prev =>
       prev.map(item => {
@@ -489,29 +566,38 @@ export function useHomeStore() {
     );
 
     if (isSupabaseConfigured && supabase) {
-      supabase.from('shopping_items').update({ is_completed: updatedCompleted }).eq('id', id).then();
+      const { error } = await supabase.from('shopping_items').update({ is_completed: updatedCompleted }).eq('id', id);
+      if (error) {
+        console.error('[Supabase Update Error] Hiba a bevásárlóelem státuszának módosításakor:', error);
+      }
     }
   };
 
-  const reassignShoppingItem = (id: string, assignedUser: UserId) => {
+  const reassignShoppingItem = async (id: string, assignedUser: UserId) => {
     setShoppingItems(prev =>
       prev.map(item => (item.id === id ? { ...item, assignedUser } : item))
     );
 
     if (isSupabaseConfigured && supabase) {
-      supabase.from('shopping_items').update({ assigned_user: assignedUser }).eq('id', id).then();
+      const { error } = await supabase.from('shopping_items').update({ assigned_user: assignedUser }).eq('id', id);
+      if (error) {
+        console.error('[Supabase Update Error] Hiba a tétel felelősének módosításakor:', error);
+      }
     }
   };
 
-  const deleteShoppingItem = (id: string) => {
+  const deleteShoppingItem = async (id: string) => {
     setShoppingItems(prev => prev.filter(item => item.id !== id));
 
     if (isSupabaseConfigured && supabase) {
-      supabase.from('shopping_items').delete().eq('id', id).then();
+      const { error } = await supabase.from('shopping_items').delete().eq('id', id);
+      if (error) {
+        console.error('[Supabase Delete Error] Hiba a bevásárlási tétel törlésekor:', error);
+      }
     }
   };
 
-  const updateShoppingItem = (id: string, updates: Partial<ShoppingItem>) => {
+  const updateShoppingItem = async (id: string, updates: Partial<ShoppingItem>) => {
     setShoppingItems(prev =>
       prev.map(item => (item.id === id ? { ...item, ...updates } : item))
     );
@@ -529,7 +615,10 @@ export function useHomeStore() {
       if (updates.date !== undefined) dbPayload.date = updates.date;
 
       if (Object.keys(dbPayload).length > 0) {
-        supabase.from('shopping_items').update(dbPayload).eq('id', id).then();
+        const { error } = await supabase.from('shopping_items').update(dbPayload).eq('id', id);
+        if (error) {
+          console.error('[Supabase Update Error] Hiba a bevásárlóelem frissítésekor:', error);
+        }
       }
     }
   };
@@ -545,7 +634,7 @@ export function useHomeStore() {
 
     const userId = await getAuthUserId();
     if (isSupabaseConfigured && supabase && userId) {
-      supabase.from('todo_tasks').insert([{
+      const { error } = await supabase.from('todo_tasks').insert([{
         id: newTask.id,
         user_id: userId,
         title: newTask.title,
@@ -554,11 +643,14 @@ export function useHomeStore() {
         date: newTask.date,
         assigned_user: newTask.assignedUser,
         is_completed: false
-      }]).then();
+      }]);
+      if (error) {
+        console.error('[Supabase Write Error] Hiba a feladat mentésekor:', error);
+      }
     }
   };
 
-  const toggleTodoTask = (id: string) => {
+  const toggleTodoTask = async (id: string) => {
     let updatedCompleted = false;
     setTodos(prev =>
       prev.map(t => {
@@ -571,25 +663,34 @@ export function useHomeStore() {
     );
 
     if (isSupabaseConfigured && supabase) {
-      supabase.from('todo_tasks').update({ is_completed: updatedCompleted }).eq('id', id).then();
+      const { error } = await supabase.from('todo_tasks').update({ is_completed: updatedCompleted }).eq('id', id);
+      if (error) {
+        console.error('[Supabase Update Error] Hiba a feladat állapotának módosításakor:', error);
+      }
     }
   };
 
-  const reassignTodoTask = (id: string, assignedUser: UserId) => {
+  const reassignTodoTask = async (id: string, assignedUser: UserId) => {
     setTodos(prev =>
       prev.map(t => (t.id === id ? { ...t, assignedUser } : t))
     );
 
     if (isSupabaseConfigured && supabase) {
-      supabase.from('todo_tasks').update({ assigned_user: assignedUser }).eq('id', id).then();
+      const { error } = await supabase.from('todo_tasks').update({ assigned_user: assignedUser }).eq('id', id);
+      if (error) {
+        console.error('[Supabase Update Error] Hiba a feladat felelősének módosításakor:', error);
+      }
     }
   };
 
-  const deleteTodoTask = (id: string) => {
+  const deleteTodoTask = async (id: string) => {
     setTodos(prev => prev.filter(t => t.id !== id));
 
     if (isSupabaseConfigured && supabase) {
-      supabase.from('todo_tasks').delete().eq('id', id).then();
+      const { error } = await supabase.from('todo_tasks').delete().eq('id', id);
+      if (error) {
+        console.error('[Supabase Delete Error] Hiba a feladat törlésekor:', error);
+      }
     }
   };
 
@@ -643,7 +744,7 @@ export function useHomeStore() {
 
     const userId = await getAuthUserId();
     if (isSupabaseConfigured && supabase && userId) {
-      supabase.from('family_meals').insert([{
+      const { error } = await supabase.from('family_meals').insert([{
         id: newMeal.id,
         user_id: userId,
         date: newMeal.date,
@@ -652,11 +753,14 @@ export function useHomeStore() {
         ingredients: newMeal.ingredients,
         suggested_by: newMeal.suggestedBy,
         notes: newMeal.notes
-      }]).then();
+      }]);
+      if (error) {
+        console.error('[Supabase Write Error] Hiba az étel mentésekor:', error);
+      }
     }
   };
 
-  const updateMeal = (id: string, updates: Partial<MealItem>) => {
+  const updateMeal = async (id: string, updates: Partial<MealItem>) => {
     setMeals(prev =>
       prev.map(meal => (meal.id === id ? { ...meal, ...updates } : meal))
     );
@@ -671,16 +775,22 @@ export function useHomeStore() {
       if (updates.notes !== undefined) dbPayload.notes = updates.notes;
 
       if (Object.keys(dbPayload).length > 0) {
-        supabase.from('family_meals').update(dbPayload).eq('id', id).then();
+        const { error } = await supabase.from('family_meals').update(dbPayload).eq('id', id);
+        if (error) {
+          console.error('[Supabase Update Error] Hiba az étel frissítésekor:', error);
+        }
       }
     }
   };
 
-  const deleteMeal = (id: string) => {
+  const deleteMeal = async (id: string) => {
     setMeals(prev => prev.filter(m => m.id !== id));
 
     if (isSupabaseConfigured && supabase) {
-      supabase.from('family_meals').delete().eq('id', id).then();
+      const { error } = await supabase.from('family_meals').delete().eq('id', id);
+      if (error) {
+        console.error('[Supabase Delete Error] Hiba az étel törlésekor:', error);
+      }
     }
   };
 
@@ -788,6 +898,8 @@ export function useHomeStore() {
     currentUser,
     stores,
     addCustomStore,
+    updateCustomStore,
+    deleteCustomStore,
     selectedDate,
     setSelectedDate,
     shoppingItems,

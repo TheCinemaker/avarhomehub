@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { Settings, Download, Upload, RefreshCw, User, ShieldCheck, Database, UserPlus, Plus, Trash2 } from 'lucide-react';
+import { Settings, Download, Upload, RefreshCw, User, ShieldCheck, Database, UserPlus, Plus, Trash2, Store, ShoppingBag, Pencil, Check, X } from 'lucide-react';
 
 const PROTECTED_USER_IDS = ['apa', 'anya', 'gyerek', 'everyone'];
 
@@ -8,6 +8,10 @@ export const SettingsTab = ({
   onUpdateUserProfile,
   onDeleteCustomUser,
   onAddCustomUser,
+  stores = [],
+  onAddCustomStore,
+  onUpdateCustomStore,
+  onDeleteCustomStore,
   onExport,
   onImport,
   onReset
@@ -18,9 +22,11 @@ export const SettingsTab = ({
   const [newUserName, setNewUserName] = useState('');
   const [newUserColor, setNewUserColor] = useState('#f59e0b');
 
-  // A profilmezők eddig index alapján, a state objektumát MUTÁLVA íródtak,
-  // és sosem jutottak el a Supabase-ig. Most azonosító szerint mennek, és a
-  // store gondoskodik a felhőbe mentésről is.
+  // Store Management Form State
+  const [newStoreName, setNewStoreName] = useState('');
+  const [editingStore, setEditingStore] = useState(null); // string (old name) or null
+  const [editStoreNameInput, setEditStoreNameInput] = useState('');
+
   const handleProfileChange = (id, field, value) => {
     onUpdateUserProfile(id, { [field]: value });
   };
@@ -38,6 +44,37 @@ export const SettingsTab = ({
       onAddCustomUser(newUserName.trim(), newUserColor);
     }
     setNewUserName('');
+  };
+
+  const handleAddStoreSubmit = (e) => {
+    e.preventDefault();
+    if (!newStoreName.trim()) return;
+    if (onAddCustomStore) {
+      onAddCustomStore(newStoreName.trim());
+    }
+    setNewStoreName('');
+  };
+
+  const handleStartEditStore = (storeName) => {
+    setEditingStore(storeName);
+    setEditStoreNameInput(storeName);
+  };
+
+  const handleSaveEditStore = (oldName) => {
+    if (editStoreNameInput.trim() && editStoreNameInput.trim() !== oldName) {
+      if (onUpdateCustomStore) {
+        onUpdateCustomStore(oldName, editStoreNameInput.trim());
+      }
+    }
+    setEditingStore(null);
+  };
+
+  const handleDeleteStore = (storeName) => {
+    if (window.confirm(`Biztosan törlöd a(z) "${storeName}" boltot a listáról?`)) {
+      if (onDeleteCustomStore) {
+        onDeleteCustomStore(storeName);
+      }
+    }
   };
 
   return (
@@ -137,6 +174,90 @@ export const SettingsTab = ({
             </div>
             <button type="submit" className="btn-primary" style={{ minHeight: '40px' }}>
               <Plus size={16} /> Hozzáadás
+            </button>
+          </div>
+        </form>
+      </div>
+
+      {/* Stores Customizer (Üzletek / Boltok Kezelése) */}
+      <div className="section">
+        <h3 className="section-title"><Store size={14} /> Üzletek / Boltok ({stores.length})</h3>
+        <p style={{ fontSize: '0.825rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
+          Testreszabhatod a család által használt boltlistát. Törölheted a nem használt üzleteket, átnevezheted vagy újat adhatsz hozzá.
+        </p>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '0.75rem', marginBottom: '1.25rem' }}>
+          {stores.map(s => {
+            const isEditing = editingStore === s;
+            return (
+              <div
+                key={s}
+                style={{
+                  padding: '0.65rem 0.85rem',
+                  background: 'rgba(30, 41, 59, 0.6)',
+                  borderRadius: 'var(--radius-md)',
+                  border: '1px solid var(--border-glass)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '0.5rem'
+                }}
+              >
+                {isEditing ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flex: 1 }}>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={editStoreNameInput}
+                      onChange={e => setEditStoreNameInput(e.target.value)}
+                      style={{ padding: '0.25rem 0.5rem', fontSize: '0.875rem' }}
+                      autoFocus
+                    />
+                    <button className="btn-icon btn-icon-sm" style={{ color: 'var(--ok)' }} onClick={() => handleSaveEditStore(s)} title="Mentés">
+                      <Check size={14} />
+                    </button>
+                    <button className="btn-icon btn-icon-sm" onClick={() => setEditingStore(null)} title="Mégse">
+                      <X size={14} />
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <span style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-main)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {s}
+                    </span>
+                    <div style={{ display: 'flex', gap: '2px', flexShrink: 0 }}>
+                      <button className="btn-icon btn-icon-sm" style={{ color: '#38bdf8' }} onClick={() => handleStartEditStore(s)} title="Bolt átnevezése">
+                        <Pencil size={14} />
+                      </button>
+                      <button className="btn-icon btn-icon-sm btn-icon-danger" onClick={() => handleDeleteStore(s)} title="Bolt törlése">
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Add New Custom Store Form */}
+        <form onSubmit={handleAddStoreSubmit} className="form-card">
+          <h4 className="section-title"><Plus size={13} /> Új bolt felvétele</h4>
+          <div className="form-inline">
+            <div className="form-group" style={{ flex: 1, minWidth: '180px' }}>
+              <label htmlFor="new-store-name">Bolt megnevezése</label>
+              <input
+                id="new-store-name"
+                type="text"
+                className="form-input"
+                placeholder="pl. Helyi kisbolt, Coop, Real"
+                value={newStoreName}
+                onChange={e => setNewStoreName(e.target.value)}
+                required
+              />
+            </div>
+            <button type="submit" className="btn-primary" style={{ minHeight: '40px' }}>
+              <Plus size={16} /> Bolt hozzáadása
             </button>
           </div>
         </form>

@@ -209,6 +209,10 @@ export function App() {
             onUpdateUserProfile={store.updateUserProfile}
             onDeleteCustomUser={store.deleteCustomUser}
             onAddCustomUser={store.addCustomUser}
+            stores={store.stores}
+            onAddCustomStore={store.addCustomStore}
+            onUpdateCustomStore={store.updateCustomStore}
+            onDeleteCustomStore={store.deleteCustomStore}
             onExport={store.exportDataJSON}
             onImport={store.importDataJSON}
             onReset={store.resetToDemoData}
