@@ -183,6 +183,7 @@ export function App() {
             activeUserId={store.activeUserId}
             selectedDate={store.selectedDate}
             onAddTask={store.addTodoTask}
+            onUpdateTask={store.updateTodoTask}
             onToggleTask={store.toggleTodoTask}
             onReassignTask={store.reassignTodoTask}
             onDeleteTask={store.deleteTodoTask}
@@ -197,6 +198,7 @@ export function App() {
             users={store.users}
             activeUserId={store.activeUserId}
             onAddTask={store.addTodoTask}
+            onUpdateTask={store.updateTodoTask}
             onToggleTask={store.toggleTodoTask}
             onReassignTask={store.reassignTodoTask}
             onDeleteTask={store.deleteTodoTask}

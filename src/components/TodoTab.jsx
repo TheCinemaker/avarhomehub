@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { CheckSquare, Plus, Trash2, Check, RefreshCw, X, UserPlus, Calendar } from 'lucide-react';
+import { CheckSquare, Plus, Trash2, Check, RefreshCw, X, UserPlus, Calendar, Pencil } from 'lucide-react';
 import { useModalBehavior } from '../hooks/useModalBehavior';
 import { formatShort, formatLong, relativeDayName } from '../utils/date';
 
@@ -19,6 +19,7 @@ export const TodoTab = ({
   activeUserId,
   selectedDate,
   onAddTask,
+  onUpdateTask,
   onToggleTask,
   onReassignTask,
   onDeleteTask
@@ -27,7 +28,10 @@ export const TodoTab = ({
   const [showAllDates, setShowAllDates] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // New Task Form State
+  // Edit Task State
+  const [editingTask, setEditingTask] = useState(null);
+
+  // Form State (shared for new/edit)
   const [title, setTitle] = useState('');
   const [priority, setPriority] = useState('medium');
   const [category, setCategory] = useState('Házimunka');
@@ -37,6 +41,7 @@ export const TodoTab = ({
   const [recurringFrequency, setRecurringFrequency] = useState('napi');
 
   useModalBehavior(isModalOpen, () => setIsModalOpen(false));
+  useModalBehavior(Boolean(editingTask), () => setEditingTask(null));
 
   // „Ma" / „Holnap", egyébként olvasható dátum — nyers ISO helyett
   const dayLabel = relativeDayName(selectedDate) || formatLong(selectedDate);
@@ -55,22 +60,59 @@ export const TodoTab = ({
     return matchesDate && matchesUser && matchesPriority;
   });
 
+  const startNewTask = () => {
+    setEditingTask(null);
+    setTitle('');
+    setPriority('medium');
+    setCategory('Házimunka');
+    setAssignedUser(activeUserId === 'everyone' ? 'apa' : activeUserId);
+    setTaskDate(selectedDate);
+    setIsRecurring(false);
+    setRecurringFrequency('napi');
+    setIsModalOpen(true);
+  };
+
+  const startEditTask = (task) => {
+    setEditingTask(task);
+    setTitle(task.title || '');
+    setPriority(task.priority || 'medium');
+    setCategory(task.category || 'Házimunka');
+    setAssignedUser(task.assignedUser || activeUserId);
+    setTaskDate(task.date || selectedDate);
+    setIsRecurring(Boolean(task.isRecurring));
+    setRecurringFrequency(task.recurringFrequency || 'napi');
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!title.trim()) return;
 
-    onAddTask({
-      title: title.trim(),
-      date: taskDate,
-      assignedUser,
-      priority,
-      category,
-      isRecurring,
-      recurringFrequency: isRecurring ? recurringFrequency : undefined
-    });
-
-    setTitle('');
-    setIsModalOpen(false);
+    if (editingTask) {
+      if (onUpdateTask) {
+        onUpdateTask(editingTask.id, {
+          title: title.trim(),
+          date: taskDate,
+          assignedUser,
+          priority,
+          category,
+          isRecurring,
+          recurringFrequency: isRecurring ? recurringFrequency : undefined
+        });
+      }
+      setEditingTask(null);
+    } else {
+      onAddTask({
+        title: title.trim(),
+        date: taskDate,
+        assignedUser,
+        priority,
+        category,
+        isRecurring,
+        recurringFrequency: isRecurring ? recurringFrequency : undefined
+      });
+      setTitle('');
+      setIsModalOpen(false);
+    }
   };
 
   const getPriorityBadge = (p) => {
@@ -104,7 +146,7 @@ export const TodoTab = ({
             {showAllDates ? 'Adott nap' : 'Összes nap'}
           </button>
 
-          <button className="btn-primary" onClick={() => { setTaskDate(selectedDate); setIsModalOpen(true); }}>
+          <button className="btn-primary" onClick={startNewTask}>
             <Plus size={16} /> Új feladat
           </button>
         </div>
@@ -187,7 +229,18 @@ export const TodoTab = ({
                 </div>
               </div>
 
-              <div className="item-right">
+              <div className="item-right" style={{ display: 'flex', gap: '0.25rem', alignItems: 'center' }}>
+                <button
+                  className="btn-icon btn-icon-sm"
+                  style={{ color: '#38bdf8' }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    startEditTask(task);
+                  }}
+                  title="Feladat szerkesztése"
+                >
+                  <Pencil size={15} />
+                </button>
                 <button
                   className="btn-icon btn-icon-sm btn-icon-danger"
                   onClick={(e) => {
@@ -204,15 +257,20 @@ export const TodoTab = ({
         </div>
       )}
 
-      {/* Add Task Modal (Portal to document.body to fix top cut-off on mobile) */}
-      {isModalOpen && createPortal(
-        <div className="modal-overlay full-screen-modal-overlay" style={{ zIndex: 9999 }} onClick={() => setIsModalOpen(false)}>
+      {/* Add / Edit Task Modal (Portal to document.body) */}
+      {(isModalOpen || Boolean(editingTask)) && createPortal(
+        <div
+          className="modal-overlay full-screen-modal-overlay"
+          style={{ zIndex: 9999 }}
+          onClick={() => { setIsModalOpen(false); setEditingTask(null); }}
+        >
           <div className="modal-content full-screen-modal-content" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <h2 style={{ fontSize: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <CheckSquare size={20} style={{ color: '#818cf8' }} /> Új Feladat Hozzáadása
+                <CheckSquare size={20} style={{ color: '#818cf8' }} />
+                {editingTask ? 'Feladat Szerkesztése' : 'Új Feladat Hozzáadása'}
               </h2>
-              <button className="btn-icon" onClick={() => setIsModalOpen(false)}>
+              <button className="btn-icon" onClick={() => { setIsModalOpen(false); setEditingTask(null); }}>
                 <X size={20} />
               </button>
             </div>
@@ -312,11 +370,11 @@ export const TodoTab = ({
               )}
 
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '0.5rem' }}>
-                <button type="button" className="btn-secondary" onClick={() => setIsModalOpen(false)}>
+                <button type="button" className="btn-secondary" onClick={() => { setIsModalOpen(false); setEditingTask(null); }}>
                   Mégse
                 </button>
                 <button type="submit" className="btn-primary" style={{ padding: '0.75rem 1.5rem' }}>
-                  Feladat Mentése
+                  {editingTask ? 'Módosítás Mentése' : 'Feladat Mentése'}
                 </button>
               </div>
             </form>

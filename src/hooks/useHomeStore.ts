@@ -720,6 +720,30 @@ export function useHomeStore() {
     }
   };
 
+  const updateTodoTask = async (id: string, updates: Partial<TodoTask>) => {
+    setTodos(prev =>
+      prev.map(t => (t.id === id ? { ...t, ...updates } : t))
+    );
+
+    const userId = await getAuthUserId();
+    if (isSupabaseConfigured && supabase && userId) {
+      const dbPayload: any = {};
+      if (updates.title !== undefined) dbPayload.title = updates.title;
+      if (updates.category !== undefined) dbPayload.category = updates.category;
+      if (updates.priority !== undefined) dbPayload.priority = updates.priority;
+      if (updates.date !== undefined) dbPayload.date = updates.date;
+      if (updates.assignedUser !== undefined) dbPayload.assigned_user = updates.assignedUser;
+      if (updates.isCompleted !== undefined) dbPayload.is_completed = updates.isCompleted;
+
+      if (Object.keys(dbPayload).length > 0) {
+        const { error } = await supabase.from('todo_tasks').update(dbPayload).eq('id', id).eq('user_id', userId);
+        if (error) {
+          console.error('[Supabase Update Error] Hiba a feladat frissítésekor:', error);
+        }
+      }
+    }
+  };
+
   // Actions: Bills
   const addBillItem = (bill: Omit<BillItem, 'id' | 'status'>) => {
     const newBill: BillItem = {
@@ -936,6 +960,7 @@ export function useHomeStore() {
     deleteShoppingItem,
     todos,
     addTodoTask,
+    updateTodoTask,
     toggleTodoTask,
     reassignTodoTask,
     deleteTodoTask,
