@@ -10,6 +10,8 @@ import { todayIso } from '../utils/date';
 const DEFAULT_STORES = ['Lidl', 'Aldi', 'SPAR', 'Tesco', 'Penny', 'Auchan', 'DM', 'Rossmann', 'Egyéb'];
 const CATEGORIES = ['Élelmiszer', 'Háztartás', 'Gyógyszertár', 'Barkács', 'Személyes', 'Egyéb'];
 
+const stripEmojis = (str) => typeof str === 'string' ? str.replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{1F1E6}-\u{1F1FF}📌💡🍲🛒💳📋]/gu, '').trim() : str;
+
 export const ShoppingTab = ({
   items,
   users,
@@ -346,9 +348,11 @@ export const ShoppingTab = ({
 
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div className="compact-item-title" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
-                    <span>{item.title}</span>
-                    {item.quantity && <span className="item-qty">{item.quantity}</span>}
-                    {item.mealTag && (
+                    <span>{stripEmojis(item.title)}</span>
+                    {item.quantity && !item.quantity.includes('ebéd') && !item.quantity.includes('vacsora') && (
+                      <span className="item-qty">{stripEmojis(item.quantity)}</span>
+                    )}
+                    {(item.mealTag || (item.quantity && (item.quantity.includes('ebéd') || item.quantity.includes('vacsora')))) && (
                       <span className="meal-tag-badge" style={{
                         display: 'inline-flex',
                         alignItems: 'center',
@@ -362,7 +366,7 @@ export const ShoppingTab = ({
                         fontWeight: 600
                       }}>
                         <Utensils size={10} />
-                        {item.mealTag}
+                        {stripEmojis(item.mealTag || item.quantity)}
                       </span>
                     )}
                   </div>
@@ -481,8 +485,8 @@ export const ShoppingTab = ({
                         )}
                         <div style={{ flex: 1 }}>
                           <div style={{ fontSize: '1.1rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                            <span>{item.title}</span>
-                            {item.mealTag && (
+                            <span>{stripEmojis(item.title)}</span>
+                            {(item.mealTag || (item.quantity && (item.quantity.includes('ebéd') || item.quantity.includes('vacsora')))) && (
                               <span style={{
                                 display: 'inline-flex',
                                 alignItems: 'center',
@@ -496,12 +500,12 @@ export const ShoppingTab = ({
                                 fontWeight: 600
                               }}>
                                 <Utensils size={12} />
-                                {item.mealTag}
+                                {stripEmojis(item.mealTag || item.quantity)}
                               </span>
                             )}
                           </div>
                           <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                            {item.quantity && <span>{item.quantity} • </span>}
+                            {item.quantity && !item.quantity.includes('ebéd') && !item.quantity.includes('vacsora') && <span>{stripEmojis(item.quantity)} • </span>}
                             <span style={{ color: '#38bdf8', fontWeight: 600 }}>{item.store}</span>
                           </div>
                         </div>

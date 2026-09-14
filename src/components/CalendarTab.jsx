@@ -5,6 +5,8 @@ import {
 } from 'lucide-react';
 import { parseIsoDate, todayIso, formatLong } from '../utils/date';
 
+const stripEmojis = (str) => typeof str === 'string' ? str.replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{1F1E6}-\u{1F1FF}📌💡🍲🛒💳📋]/gu, '').trim() : str;
+
 const DAYS_OF_WEEK = [
   { key: 1, name: 'Hétfő' },
   { key: 2, name: 'Kedd' },
@@ -527,12 +529,14 @@ export const CalendarTab = ({
                         {item.isCompleted && <Check size={14} />}
                       </div>
                       <div className="compact-item-title" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
-                        <span>{item.title}</span>
-                        {item.quantity && <span className="item-qty">{item.quantity}</span>}
-                        {item.mealTag && (
+                        <span>{stripEmojis(item.title)}</span>
+                        {item.quantity && !item.quantity.includes('ebéd') && !item.quantity.includes('vacsora') && (
+                          <span className="item-qty">{stripEmojis(item.quantity)}</span>
+                        )}
+                        {(item.mealTag || (item.quantity && (item.quantity.includes('ebéd') || item.quantity.includes('vacsora')))) && (
                           <span className="meal-tag-badge" style={{ fontSize: '0.7rem', padding: '0.1rem 0.4rem', borderRadius: '999px', background: 'rgba(249, 115, 22, 0.2)', color: '#fb923c', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.2rem' }}>
                             <Utensils size={10} />
-                            {item.mealTag}
+                            {stripEmojis(item.mealTag || item.quantity)}
                           </span>
                         )}
                       </div>

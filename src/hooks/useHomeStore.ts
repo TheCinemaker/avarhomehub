@@ -193,20 +193,35 @@ export function useHomeStore() {
 
     async function loadFromSupabase() {
       try {
+        const cleanText = (str?: string): string => {
+          if (!str) return '';
+          return str
+            .replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{1F1E6}-\u{1F1FF}📌💡🍲🛒💳📋]/gu, '')
+            .trim();
+        };
+
         const { data: remoteShopping } = await supabase!.from('shopping_items').select('*');
         if (remoteShopping && remoteShopping.length > 0) {
-          const mapped: ShoppingItem[] = remoteShopping.map((r: any) => ({
-            id: r.id,
-            title: r.title,
-            quantity: r.quantity || undefined,
-            estimatedPrice: Number(r.estimated_price) || 0,
-            store: r.store || 'Lidl',
-            category: r.category || 'Élelmiszer',
-            date: r.date || getRelativeDate(0),
-            assignedUser: r.assigned_user || 'everyone',
-            isCompleted: r.is_completed || false,
-            imageUrl: r.image_url || undefined
-          }));
+          const mapped: ShoppingItem[] = remoteShopping.map((r: any) => {
+            const rawQty = r.quantity ? cleanText(r.quantity) : undefined;
+            const isMealQty = rawQty && (rawQty.includes('ebéd') || rawQty.includes('vacsora'));
+            const mealTag = r.meal_tag ? cleanText(r.meal_tag) : (isMealQty ? rawQty : undefined);
+            const displayQty = isMealQty ? undefined : rawQty;
+
+            return {
+              id: r.id,
+              title: cleanText(r.title),
+              quantity: displayQty,
+              estimatedPrice: Number(r.estimated_price) || 0,
+              store: r.store || 'Lidl',
+              category: r.category || 'Élelmiszer',
+              date: r.date || getRelativeDate(0),
+              assignedUser: r.assigned_user || 'everyone',
+              isCompleted: r.is_completed || false,
+              imageUrl: r.image_url || undefined,
+              mealTag
+            };
+          });
           setShoppingItems(mapped);
         } else {
           setShoppingItems([]);
@@ -879,7 +894,7 @@ export function useHomeStore() {
         isCompleted: false,
         estimatedPrice: 0,
         mealTag: tagString || undefined,
-        quantity: tagString ? tagString : undefined
+        quantity: undefined
       };
       newItems.push(newItem);
 
