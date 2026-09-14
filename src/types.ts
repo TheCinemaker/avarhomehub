@@ -24,7 +24,7 @@ export interface ShoppingItem {
   assignedUser: UserId;
   isCompleted: boolean;
   imageUrl?: string; // Base64 Data URL or Supabase Storage URL for product packaging photo!
-  mealTag?: string; // pl. "📌 Vasárnapi ebéd (Gulyásleves)"
+  mealTag?: string; // pl. "Vasárnapi ebéd (Gulyásleves)"
 }
 
 export type Priority = 'high' | 'medium' | 'low';

@@ -864,7 +864,7 @@ export function useHomeStore() {
       const dayStr = mealContext.dayName || '';
       const typeStr = mealContext.mealType === 'vacsora' ? 'vacsora' : 'ebéd';
       const titleStr = mealContext.mealTitle ? ` (${mealContext.mealTitle})` : '';
-      tagString = `📌 ${dayStr ? `${dayStr}i` : ''} ${typeStr}${titleStr}`.trim();
+      tagString = `${dayStr ? `${dayStr}i` : ''} ${typeStr}${titleStr}`.trim();
     }
 
     for (const rawPart of parts) {

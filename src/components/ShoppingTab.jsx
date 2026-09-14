@@ -347,8 +347,8 @@ export const ShoppingTab = ({
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div className="compact-item-title" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
                     <span>{item.title}</span>
-                    {item.quantity && !item.quantity.startsWith('📌') && <span className="item-qty">{item.quantity}</span>}
-                    {(item.mealTag || (item.quantity && item.quantity.startsWith('📌'))) && (
+                    {item.quantity && <span className="item-qty">{item.quantity}</span>}
+                    {item.mealTag && (
                       <span className="meal-tag-badge" style={{
                         display: 'inline-flex',
                         alignItems: 'center',
@@ -362,7 +362,7 @@ export const ShoppingTab = ({
                         fontWeight: 600
                       }}>
                         <Utensils size={10} />
-                        {item.mealTag || item.quantity}
+                        {item.mealTag}
                       </span>
                     )}
                   </div>
@@ -482,7 +482,7 @@ export const ShoppingTab = ({
                         <div style={{ flex: 1 }}>
                           <div style={{ fontSize: '1.1rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
                             <span>{item.title}</span>
-                            {(item.mealTag || (item.quantity && item.quantity.startsWith('📌'))) && (
+                            {item.mealTag && (
                               <span style={{
                                 display: 'inline-flex',
                                 alignItems: 'center',
@@ -496,12 +496,12 @@ export const ShoppingTab = ({
                                 fontWeight: 600
                               }}>
                                 <Utensils size={12} />
-                                {item.mealTag || item.quantity}
+                                {item.mealTag}
                               </span>
                             )}
                           </div>
                           <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                            {item.quantity && !item.quantity.startsWith('📌') && <span>{item.quantity} • </span>}
+                            {item.quantity && <span>{item.quantity} • </span>}
                             <span style={{ color: '#38bdf8', fontWeight: 600 }}>{item.store}</span>
                           </div>
                         </div>

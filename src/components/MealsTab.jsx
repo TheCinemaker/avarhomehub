@@ -476,7 +476,7 @@ export const MealsTab = ({
                   style={{ resize: 'vertical' }}
                 />
                 <span style={{ fontSize: '0.775rem', color: '#38bdf8', marginTop: '3px', display: 'block' }}>
-                  💡 Vesszővel (,), pontosvesszővel (;) vagy új sorral válaszd el az ételeket! A több szavas nevek (pl. „Barilla spaghetti tészta”) egyben maradnak.
+                  Vesszővel (,), pontosvesszővel (;) vagy új sorral válaszd el az ételeket! A több szavas nevek (pl. „Barilla spaghetti tészta”) egyben maradnak.
                 </span>
               </div>
 

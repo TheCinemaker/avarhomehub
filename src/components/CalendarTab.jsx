@@ -267,8 +267,8 @@ export const CalendarTab = ({
               {/* Multi-entity Mini Badge Dots */}
               <div className="calendar-cell-dots" style={{ display: 'flex', gap: '2px', flexWrap: 'wrap', justifyContent: 'center', marginTop: '2px' }}>
                 {cell.hasMeals && (
-                  <span className="badge-mini-dot" style={{ background: '#f59e0b', color: '#fff', fontSize: '9px', padding: '1px 3px', borderRadius: '4px' }} title={`${cell.mealsCount} étel rögzítve`}>
-                    🍲
+                  <span className="badge-mini-dot" style={{ background: '#f59e0b', color: '#fff', fontSize: '9px', padding: '1px 3px', borderRadius: '4px', display: 'inline-flex', alignItems: 'center' }} title={`${cell.mealsCount} étel rögzítve`}>
+                    <Utensils size={9} />
                   </span>
                 )}
                 {cell.pendingTodosCount > 0 && (
@@ -277,13 +277,13 @@ export const CalendarTab = ({
                   </span>
                 )}
                 {cell.pendingShoppingCount > 0 && (
-                  <span className="calendar-task-badge" style={{ background: '#38bdf8', color: '#0f172a' }} title={`${cell.pendingShoppingCount} beszerzendő tétel`}>
-                    🛒 {cell.pendingShoppingCount}
+                  <span className="calendar-task-badge" style={{ background: '#38bdf8', color: '#0f172a', display: 'inline-flex', alignItems: 'center', gap: '2px' }} title={`${cell.pendingShoppingCount} beszerzendő tétel`}>
+                    <ShoppingBag size={9} /> {cell.pendingShoppingCount}
                   </span>
                 )}
                 {cell.hasBills && (
-                  <span className="badge-mini-dot" style={{ background: '#ef4444', color: '#fff', fontSize: '9px', padding: '1px 3px', borderRadius: '4px' }} title={`${cell.billsCount} esedékes számla`}>
-                    💳
+                  <span className="badge-mini-dot" style={{ background: '#ef4444', color: '#fff', fontSize: '9px', padding: '1px 3px', borderRadius: '4px', display: 'inline-flex', alignItems: 'center' }} title={`${cell.billsCount} esedékes számla`}>
+                    <CreditCard size={9} />
                   </span>
                 )}
               </div>
@@ -316,7 +316,7 @@ export const CalendarTab = ({
                 onClick={() => setActiveAgendaFilter('meals')}
                 style={activeAgendaFilter === 'meals' ? { background: 'rgba(245, 158, 11, 0.2)', color: '#f59e0b' } : undefined}
               >
-                🍲 Ételek ({selectedDayMeals.length})
+                Ételek ({selectedDayMeals.length})
               </button>
             )}
             {selectedDayTodos.length > 0 && (
@@ -325,7 +325,7 @@ export const CalendarTab = ({
                 onClick={() => setActiveAgendaFilter('todos')}
                 style={activeAgendaFilter === 'todos' ? { background: 'rgba(168, 85, 247, 0.2)', color: '#c084fc' } : undefined}
               >
-                📋 Teendők ({selectedDayTodos.length})
+                Teendők ({selectedDayTodos.length})
               </button>
             )}
             {selectedDayShopping.length > 0 && (
@@ -334,13 +334,13 @@ export const CalendarTab = ({
                 onClick={() => setActiveAgendaFilter('shopping')}
                 style={activeAgendaFilter === 'shopping' ? { background: 'rgba(56, 189, 248, 0.2)', color: '#38bdf8' } : undefined}
               >
-                🛒 Bevásárlás ({selectedDayShopping.length})
+                Bevásárlás ({selectedDayShopping.length})
               </button>
             )}
           </div>
         </div>
 
-        {/* SECTION 1: 🍲 MEALS / MENÜ FOR THIS DATE */}
+        {/* SECTION 1: MEALS / MENÜ FOR THIS DATE */}
         {(activeAgendaFilter === 'all' || activeAgendaFilter === 'meals') && selectedDayMeals.length > 0 && (
           <div style={{ marginBottom: '1.25rem' }}>
             <h4 style={{ fontSize: '0.9rem', color: '#f59e0b', display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.6rem' }}>
@@ -403,7 +403,7 @@ export const CalendarTab = ({
           </div>
         )}
 
-        {/* SECTION 2: 📋 TODO TASKS FOR THIS DATE */}
+        {/* SECTION 2: TODO TASKS FOR THIS DATE */}
         {(activeAgendaFilter === 'all' || activeAgendaFilter === 'todos') && (
           <div style={{ marginBottom: '1.25rem' }}>
             <h4 style={{ fontSize: '0.9rem', color: '#c084fc', display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.6rem' }}>
@@ -483,7 +483,7 @@ export const CalendarTab = ({
           </div>
         )}
 
-        {/* SECTION 3: 🛒 SHOPPING ITEMS FOR THIS DATE */}
+        {/* SECTION 3: SHOPPING ITEMS FOR THIS DATE */}
         {(activeAgendaFilter === 'all' || activeAgendaFilter === 'shopping') && (
           <div style={{ marginBottom: '1.25rem' }}>
             <h4 style={{ fontSize: '0.9rem', color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.6rem' }}>
@@ -528,9 +528,10 @@ export const CalendarTab = ({
                       </div>
                       <div className="compact-item-title" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
                         <span>{item.title}</span>
-                        {item.quantity && !item.quantity.startsWith('📌') && <span className="item-qty">{item.quantity}</span>}
+                        {item.quantity && <span className="item-qty">{item.quantity}</span>}
                         {item.mealTag && (
-                          <span className="meal-tag-badge" style={{ fontSize: '0.7rem', padding: '0.1rem 0.4rem', borderRadius: '999px', background: 'rgba(249, 115, 22, 0.2)', color: '#fb923c', fontWeight: 600 }}>
+                          <span className="meal-tag-badge" style={{ fontSize: '0.7rem', padding: '0.1rem 0.4rem', borderRadius: '999px', background: 'rgba(249, 115, 22, 0.2)', color: '#fb923c', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.2rem' }}>
+                            <Utensils size={10} />
                             {item.mealTag}
                           </span>
                         )}
@@ -560,7 +561,7 @@ export const CalendarTab = ({
           </div>
         )}
 
-        {/* SECTION 4: 💳 BILLS DUE ON THIS DATE */}
+        {/* SECTION 4: BILLS DUE ON THIS DATE */}
         {(activeAgendaFilter === 'all' || activeAgendaFilter === 'bills') && selectedDayBills.length > 0 && (
           <div style={{ marginBottom: '1.25rem' }}>
             <h4 style={{ fontSize: '0.9rem', color: '#ef4444', display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.6rem' }}>
